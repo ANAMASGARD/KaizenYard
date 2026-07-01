@@ -6,7 +6,7 @@ Read this before changing code.
 
 Privacy-first productivity app. Core differentiator: **anonymous attestation** — verified customers or employees can leave feedback provably from a real group member, without identifying who.
 
-Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+) with corporate features implemented; other feature routes are skeletons.
+Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+) and Kanban (Chapter 5) implemented; other feature routes are skeletons.
 
 ## Project
 
@@ -26,7 +26,7 @@ app/
     dashboard/page.tsx
     assistant/page.tsx
     calendar/page.tsx         full calendar (month/week, DnD, drafts)
-    tasks/page.tsx
+    tasks/page.tsx             full kanban (boards, columns, DnD, calendar sync)
     notes/page.tsx
     whiteboard/page.tsx
     pages/page.tsx
@@ -36,12 +36,13 @@ components/
   landing/                    marketing page sections
   dashboard/                  app shell + sidebar
   calendar/                   month/week views, draft panel, DnD, event dialog
+  kanban/                     boards sidebar, columns, cards, task dialog, DnD
   brand/logo.tsx              shared SVG logo
   auth-header.tsx             legacy header (unused; keep for future)
   user-sync.tsx               client: sync Clerk user → DB on visit
   retroui/                    UI kit — not components/ui/
 db/                           index.ts, schema.ts
-lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/
+lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/
 proxy.ts                      Clerk middleware — use this, NOT middleware.ts
 migrations/                   Drizzle SQL migrations
 memory/                       session notes for agents (memory.md)
@@ -69,7 +70,7 @@ Composed in `components/landing/landing-page.tsx`:
 
 - Wrapped in `DashboardShell` — sidebar + main content
 - All routes protected in `proxy.ts` via `auth.protect()`
-- Pages are **skeletons only** unless user asks for feature internals (calendar is implemented)
+- Pages are **skeletons only** unless user asks for feature internals (calendar and tasks/kanban are implemented)
 - Settings uses Clerk `<UserProfile routing="path" path="/settings" />` in `settings-profile.tsx`
 - **Do not** add `<OrganizationSwitcher />` until Clerk Organizations is enabled in the Clerk dashboard
 
@@ -164,6 +165,7 @@ await db.select().from(users);
 - `users` table: `clerkId` (unique), `email`, `name`, timestamps
 - `calendar_items` table: `clerkId`, `title`, `itemType`, `category`, `description`, `location`, `scheduledAt`, `durationMin`, `recurrenceRule`, `bufferBeforeMin`, `bufferAfterMin`, `isPrivate`, `attendeeCount`, timestamps — scoped per user via server actions in `lib/calendar/actions.ts`
 - Related tables: `calendar_item_exceptions`, `calendar_settings`, `calendar_meeting_pulses`, `calendar_pulse_votes`
+- `kanban_boards`, `kanban_columns`, `kanban_tasks` — per-user boards with columns, tasks, optional `calendarItemId` sync; server actions in `lib/kanban/actions.ts`
 
 ## Rules
 

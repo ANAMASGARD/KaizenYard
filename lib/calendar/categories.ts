@@ -8,6 +8,7 @@ export const CALENDAR_CATEGORIES = [
   "planning",
   "content",
   "personal",
+  "tasks",
 ] as const;
 export type CalendarCategory = (typeof CALENDAR_CATEGORIES)[number];
 
@@ -61,6 +62,13 @@ export const CATEGORY_META: Record<CalendarCategory, CategoryMeta> = {
     bgClass: "bg-orange-100 dark:bg-orange-950",
     borderClass: "border-orange-600 dark:border-orange-400",
     textClass: "text-orange-900 dark:text-orange-100",
+  },
+  tasks: {
+    id: "tasks",
+    label: "Kanban Tasks",
+    bgClass: "bg-emerald-100 dark:bg-emerald-950",
+    borderClass: "border-emerald-600 dark:border-emerald-400",
+    textClass: "text-emerald-900 dark:text-emerald-100",
   },
 };
 

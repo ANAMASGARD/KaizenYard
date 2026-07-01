@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -122,3 +123,128 @@ export type CalendarItemException = typeof calendarItemExceptions.$inferSelect;
 export type CalendarSettings = typeof calendarSettings.$inferSelect;
 export type CalendarMeetingPulse = typeof calendarMeetingPulses.$inferSelect;
 export type CalendarPulseVote = typeof calendarPulseVotes.$inferSelect;
+
+export const kanbanBoards = pgTable(
+  "kanban_boards",
+  {
+    id: serial("id").primaryKey(),
+    clerkId: text("clerk_id").notNull(),
+    name: text("name").notNull(),
+    color: text("color").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("kanban_boards_clerk_sort_idx").on(table.clerkId, table.sortOrder)],
+);
+
+export const kanbanColumns = pgTable(
+  "kanban_columns",
+  {
+    id: serial("id").primaryKey(),
+    boardId: integer("board_id")
+      .notNull()
+      .references(() => kanbanBoards.id, { onDelete: "cascade" }),
+    clerkId: text("clerk_id").notNull(),
+    name: text("name").notNull(),
+    color: text("color").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("kanban_columns_board_sort_idx").on(table.boardId, table.sortOrder)],
+);
+
+export const kanbanTasks = pgTable(
+  "kanban_tasks",
+  {
+    id: serial("id").primaryKey(),
+    columnId: integer("column_id")
+      .notNull()
+      .references(() => kanbanColumns.id, { onDelete: "cascade" }),
+    clerkId: text("clerk_id").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    dueDate: timestamp("due_date", { withTimezone: true }),
+    priority: text("priority").default("medium").notNull(),
+    labels: text("labels").array().default([]).notNull(),
+    syncCalendar: boolean("sync_calendar").default(false).notNull(),
+    linkNotes: boolean("link_notes").default(false).notNull(),
+    calendarItemId: integer("calendar_item_id").references(() => calendarItems.id, {
+      onDelete: "set null",
+    }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("kanban_tasks_column_sort_idx").on(table.columnId, table.sortOrder)],
+);
+
+export type KanbanBoard = typeof kanbanBoards.$inferSelect;
+export type NewKanbanBoard = typeof kanbanBoards.$inferInsert;
+export type KanbanColumn = typeof kanbanColumns.$inferSelect;
+export type NewKanbanColumn = typeof kanbanColumns.$inferInsert;
+export type KanbanTask = typeof kanbanTasks.$inferSelect;
+export type NewKanbanTask = typeof kanbanTasks.$inferInsert;
+
+export const kanbanTaskPulses = pgTable(
+  "kanban_task_pulses",
+  {
+    id: serial("id").primaryKey(),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => kanbanTasks.id, { onDelete: "cascade" }),
+    ownerClerkId: text("owner_clerk_id").notNull(),
+    question: text("question").notNull(),
+    shareToken: text("share_token").notNull().unique(),
+    isOpen: boolean("is_open").default(true).notNull(),
+    closesAt: timestamp("closes_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("kanban_task_pulses_task_idx").on(table.taskId)],
+);
+
+export const kanbanTaskPulseVotes = pgTable(
+  "kanban_task_pulse_votes",
+  {
+    id: serial("id").primaryKey(),
+    pulseId: integer("pulse_id")
+      .notNull()
+      .references(() => kanbanTaskPulses.id, { onDelete: "cascade" }),
+    voterTokenHash: text("voter_token_hash").notNull(),
+    vote: text("vote").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("kanban_task_pulse_votes_pulse_voter_idx").on(
+      table.pulseId,
+      table.voterTokenHash,
+    ),
+  ],
+);
+
+export const kanbanAutomations = pgTable(
+  "kanban_automations",
+  {
+    id: serial("id").primaryKey(),
+    boardId: integer("board_id")
+      .notNull()
+      .references(() => kanbanBoards.id, { onDelete: "cascade" }),
+    clerkId: text("clerk_id").notNull(),
+    name: text("name"),
+    triggerType: text("trigger_type").notNull(),
+    triggerConfig: jsonb("trigger_config").notNull().default({}),
+    actionType: text("action_type").notNull(),
+    actionConfig: jsonb("action_config").notNull().default({}),
+    isEnabled: boolean("is_enabled").default(true).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("kanban_automations_board_sort_idx").on(table.boardId, table.sortOrder)],
+);
+
+export type KanbanTaskPulse = typeof kanbanTaskPulses.$inferSelect;
+export type KanbanTaskPulseVote = typeof kanbanTaskPulseVotes.$inferSelect;
+export type KanbanAutomation = typeof kanbanAutomations.$inferSelect;

@@ -1,5 +1,5 @@
-import { SkeletonPage } from "@/components/dashboard/skeleton-page";
+import { KanbanPage } from "@/components/kanban/kanban-page";
 
 export default function TasksPage() {
-  return <SkeletonPage title="Tasks / Kanban" />;
+  return <KanbanPage />;
 }

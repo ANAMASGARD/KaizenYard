@@ -51,7 +51,7 @@ Replaced placeholder home with a full neo-brutalist marketing site:
 
 - Route group `app/(app)/` with `DashboardShell` layout
 - **Protected routes** in `proxy.ts`: `/dashboard`, `/assistant`, `/calendar`, `/tasks`, `/notes`, `/whiteboard`, `/pages`, `/templates`, `/settings`
-- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar** — full feature)
+- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar** and **Tasks/Kanban** — full features)
 - **Settings** — full Clerk `UserProfile` at `/settings` (catch-all `[[...rest]]`)
 - **Theme toggle** — mobile top bar right; desktop fixed `top-5 right-5`
 
@@ -115,6 +115,70 @@ app/(app)/calendar/export/route.ts
 app/(app)/calendar/pulse/[token]/page.tsx
 ```
 
+## Kanban / Tasks (Chapter 5 + differentiators — done)
+
+### Data
+
+- `kanban_boards` — per-user boards (name, color, sort order)
+- `kanban_columns` — up to 5 columns per board (name, color, sort order)
+- `kanban_tasks` — title, description, due date, priority, labels, calendar sync (`calendarItemId`), `linkNotes` flag, sort order
+- `kanban_task_pulses` + `kanban_task_pulse_votes` — anonymous task risk check-ins (HMAC voter tokens, same `CALENDAR_PULSE_SECRET` as meeting pulse)
+- `kanban_automations` — per-board Butler-style trigger→action rules (jsonb configs)
+
+Migrations: `20260701155506_icy_timeslip` (core kanban), `20260701162208_warm_polaris` (pulse + automations)
+
+### Core Kanban features
+
+- Multi-board sidebar, create/rename/delete boards
+- Default 3 columns (To Do / In Progress / Done), max 5 columns, column rename/color/delete
+- Task CRUD dialog — priority, labels, due date, calendar sync toggle, link-notes flag
+- Drag-and-drop within and across columns (`@dnd-kit`)
+- Calendar sync — tasks with `syncCalendar` create/update/delete linked `calendar_items` (category `"tasks"`)
+- Mobile board drawer; neo-brutalist RetroUI throughout
+
+### Anonymous Task Risk Pulse (differentiator)
+
+- Owner starts check-in from task dialog (`task-pulse-panel.tsx`) — one open pulse per task
+- Share link `/tasks/pulse/[token]` — Clerk-protected voter page; votes: `on_track` | `at_risk` | `blocked` + optional anonymous note
+- HMAC `voterTokenHash(pulseId, clerkId)` — tally visible to owner always; voters see results only after voting or pulse closed
+- Risk badge on cards (`kanban-card.tsx`) for owner when open pulse has at-risk/blocked votes
+- `getBoardPulseRiskSummaries` returned in `listBoardData` as `pulseRiskByTaskId`
+
+### Board Automations (Butler-style)
+
+- **Triggers (v1, event-driven):** `task_moved_to_column`, `task_created_in_column`, `label_added`, `due_date_passed` (lazy on board fetch), `risk_pulse_flagged` (threshold on at-risk + blocked votes)
+- **Actions:** `move_to_column`, `set_priority`, `add_label`, `remove_label`, `offset_due_date`, `toggle_calendar_sync`
+- `runAutomationsForTask` in `automation-actions.ts` — cascade guard (depth 1 via `skipAutomation` / `fromAutomation`)
+- Automation mutations use `actingAsOwnerId` so voter-triggered rules (e.g. risk pulse) apply as board owner
+- UI: ⚡ Automations button in `kanban-page.tsx` → `automation-panel.tsx` + `automation-rule-dialog.tsx`
+- `deleteColumn` cleans rules referencing deleted column IDs
+
+### Files
+
+```
+lib/kanban/
+  actions.ts, types.ts, colors.ts, labels.ts
+  pulse-actions.ts, pulse-types.ts
+  automation-actions.ts, automation-types.ts, automation-labels.ts
+
+components/kanban/
+  kanban-page.tsx, kanban-board.tsx, kanban-column.tsx, kanban-card.tsx
+  board-sidebar.tsx, board-dialog.tsx, task-dialog.tsx, task-pulse-panel.tsx
+  automation-panel.tsx, automation-rule-dialog.tsx
+  add-column-popover.tsx, column-options-menu.tsx, color-swatch-picker.tsx
+
+app/(app)/tasks/page.tsx
+app/(app)/tasks/pulse/[token]/page.tsx
+```
+
+### RetroUI / lint patterns (kanban)
+
+- `Dialog.Header asChild` + `<h2>` — no `Dialog.Title`
+- `Popover.Trigger` dot notation — not named `PopoverTrigger`
+- Native `<select>` in automation rule dialog (RetroUI Select export pitfalls)
+- Form remount via `key` to avoid `set-state-in-effect` ESLint in dialogs
+- `Textarea` untyped — use `ChangeEvent<HTMLTextAreaElement>` on `onChange`
+
 ## Dark mode (full-site — done)
 
 - **`next-themes`** — `ThemeProvider` with `attribute="class"`, `storageKey="kaizenyard-theme"`, `defaultTheme="system"`, `disableTransitionOnChange` (no page-wide color lag)
@@ -176,7 +240,8 @@ db/
 
 lib/
   mask-email.ts           partial email masking for sidebar
-  calendar/               categories, date-utils, server actions, types
+  calendar/               categories, date-utils, server actions, types, pulse-actions
+  kanban/                 boards/columns/tasks, pulse, automations, server actions
   sync-user.ts            Clerk → users upsert
   format-db-error.ts      readable DB errors
   with-db-retry.ts        transient connection retry
@@ -200,7 +265,8 @@ scripts/
 
 ## Not done yet
 
-- Feature internals (tasks/kanban, notes, whiteboard, pages, templates, assistant)
+- Feature internals (notes, whiteboard, pages, templates, assistant)
 - Real global search
-- Attestation feature implementation
+- Attestation feature implementation (beyond anonymous pulse voting pattern)
 - Clerk Organizations / workspace switcher (when enabled in Clerk dashboard)
+- Multi-user boards / assignees
