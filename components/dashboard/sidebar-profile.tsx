@@ -44,7 +44,7 @@ export function SidebarProfile({
   if (isCollapsed) {
     return (
       <Tooltip.Provider>
-        <div className="mt-auto w-full shrink-0 border-t-2 border-black py-3">
+        <div className="mt-auto w-full shrink-0 border-t-2 border-border py-3">
           <div className="flex w-full flex-col items-center gap-2">
             <Tooltip>
               <Tooltip.Trigger
@@ -77,8 +77,8 @@ export function SidebarProfile({
   }
 
   return (
-    <div className="mt-auto w-full shrink-0 space-y-2 border-t-2 border-black p-2">
-      <div className="flex items-center gap-2 rounded border-2 border-black bg-background p-2 shadow-sm">
+    <div className="mt-auto w-full shrink-0 space-y-2 border-t-2 border-border p-2">
+      <div className="flex items-center gap-2 rounded border-2 border-border bg-background p-2 shadow-sm">
         <UserButton appearance={clerkAppearance} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-head text-sm font-semibold">{displayName}</p>

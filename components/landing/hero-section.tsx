@@ -6,7 +6,7 @@ const STATS = [
 
 export function HeroSection() {
   return (
-    <section className="relative h-screen w-full overflow-hidden border-b-2 border-black bg-black">
+    <section className="relative h-screen w-full overflow-hidden border-b-2 border-border bg-black">
       <video
         autoPlay
         muted

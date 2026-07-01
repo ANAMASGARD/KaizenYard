@@ -5,7 +5,7 @@ const ROADMAP = [
   { num: "01", title: "Project setup", status: "done" },
   { num: "02", title: "DB + auth", status: "done" },
   { num: "03", title: "Dashboard layout", status: "next" },
-  { num: "04", title: "Calendar", status: "planned" },
+  { num: "04", title: "Calendar", status: "done" },
   { num: "05", title: "Kanban board", status: "planned" },
   { num: "06", title: "Notes", status: "planned" },
   { num: "07", title: "Whiteboard", status: "planned" },
@@ -19,7 +19,7 @@ function statusStyles(status: (typeof ROADMAP)[number]["status"]) {
     case "done":
       return "bg-foreground text-background";
     case "next":
-      return "bg-primary text-primary-foreground border-2 border-black";
+      return "bg-primary text-primary-foreground border-2 border-border";
     case "planned":
       return "bg-muted text-muted-foreground";
     default: {
@@ -33,7 +33,7 @@ export function RoadmapSection() {
   return (
     <section
       id="roadmap"
-      className="border-b-2 border-black bg-background px-6 py-20 sm:px-10 md:px-16 lg:px-20"
+      className="border-b-2 border-border bg-background px-6 py-20 sm:px-10 md:px-16 lg:px-20"
     >
       <div className="mx-auto max-w-6xl">
         <div className="mb-12 max-w-2xl">
@@ -53,7 +53,7 @@ export function RoadmapSection() {
           {ROADMAP.map((item) => (
             <Card
               key={item.num}
-              className="group border-2 border-black p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+              className="group border-2 border-border p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="mb-3 flex items-center justify-between">
                 <span className="font-head text-xs font-bold text-muted-foreground">

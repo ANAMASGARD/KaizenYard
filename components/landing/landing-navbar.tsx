@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/retroui/Button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -41,7 +42,7 @@ export function LandingNavbar() {
         className={cn(
           "fixed top-0 z-50 w-full transition-all duration-300",
           scrolled
-            ? "border-b-2 border-black bg-background/95 shadow-sm backdrop-blur-md"
+            ? "border-b-2 border-border bg-background/95 shadow-sm backdrop-blur-md"
             : "border-b-0 bg-transparent",
         )}
       >
@@ -75,6 +76,7 @@ export function LandingNavbar() {
           </nav>
 
           <div className="hidden items-center gap-3 lg:flex">
+            <ThemeToggle onHero={onHero} />
             <Show when="signed-out">
               <SignInButton mode="redirect" forceRedirectUrl="/dashboard">
                 <Button
@@ -106,7 +108,7 @@ export function LandingNavbar() {
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: "border-2 border-black shadow-md",
+                    avatarBox: "border-2 border-border shadow-md",
                   },
                 }}
               />
@@ -152,13 +154,16 @@ export function LandingNavbar() {
         )}
         aria-hidden={!menuOpen}
       >
-        <nav className="flex flex-1 flex-col justify-center px-6 pt-20 sm:px-10">
+        <div className="flex items-center justify-end px-6 pt-5 sm:px-10">
+          <ThemeToggle />
+        </div>
+        <nav className="flex flex-1 flex-col justify-center px-6 sm:px-10">
           {NAV_LINKS.map((link, index) => (
             <a
               key={link.href}
               href={link.href}
               onClick={closeMenu}
-              className="animate-mobile-nav-link flex items-center justify-between border-b-2 border-black/10 py-5 font-head text-2xl font-normal tracking-tight sm:text-3xl"
+              className="animate-mobile-nav-link flex items-center justify-between border-b-2 border-border/10 py-5 font-head text-2xl font-normal tracking-tight sm:text-3xl"
               style={{ animationDelay: `${index * 60 + 150}ms` }}
             >
               {link.label}
@@ -170,7 +175,7 @@ export function LandingNavbar() {
         </nav>
 
         <div
-          className="animate-mobile-nav-buttons flex flex-col gap-3 border-t-2 border-black px-6 py-8 sm:px-10"
+          className="animate-mobile-nav-buttons flex flex-col gap-3 border-t-2 border-border px-6 py-8 sm:px-10"
           style={{ animationDelay: "400ms" }}
         >
           <Show when="signed-out">
@@ -195,7 +200,7 @@ export function LandingNavbar() {
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: "border-2 border-black shadow-md",
+                    avatarBox: "border-2 border-border shadow-md",
                   },
                 }}
               />

@@ -1,5 +1,5 @@
-import { SkeletonPage } from "@/components/dashboard/skeleton-page";
+import { CalendarPage } from "@/components/calendar/calendar-page";
 
-export default function CalendarPage() {
-  return <SkeletonPage title="Calendar" />;
+export default function CalendarRoute() {
+  return <CalendarPage />;
 }

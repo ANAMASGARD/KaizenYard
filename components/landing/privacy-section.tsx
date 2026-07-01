@@ -21,17 +21,17 @@ export function PrivacySection() {
   return (
     <section
       id="privacy"
-      className="border-b-2 border-black bg-foreground px-6 py-20 text-background sm:px-10 md:px-16 lg:px-20"
+      className="border-b-2 border-border bg-secondary px-6 py-20 text-secondary-foreground dark:bg-muted dark:text-foreground sm:px-10 md:px-16 lg:px-20"
     >
       <div className="mx-auto max-w-6xl">
         <div className="mb-12 max-w-2xl">
-          <p className="mb-3 font-sans text-xs font-medium uppercase tracking-[0.25em] text-background/50">
+          <p className="mb-3 font-sans text-xs font-medium uppercase tracking-[0.25em] opacity-50">
             Privacy by design
           </p>
-          <Text as="h2" className="mb-4 text-background">
+          <Text as="h2" className="mb-4">
             Trust is the product
           </Text>
-          <p className="font-sans text-background/70">
+          <p className="font-sans opacity-70">
             Kaizenyard is built for teams who need honest feedback and focused
             work — without trading privacy for productivity.
           </p>
@@ -41,7 +41,7 @@ export function PrivacySection() {
           {PILLARS.map((pillar) => (
             <Card
               key={pillar.title}
-              className="border-2 border-background bg-background p-6 text-foreground shadow-[4px_4px_0_0_hsl(0_0%_100%)]"
+              className="border-2 border-border bg-background p-6 text-foreground shadow-md"
             >
               <Text as="h3" className="mb-2 text-lg">
                 {pillar.title}
@@ -53,12 +53,12 @@ export function PrivacySection() {
           ))}
         </div>
 
-        <Card className="flex flex-col items-start justify-between gap-6 border-2 border-background bg-primary p-8 shadow-[6px_6px_0_0_hsl(0_0%_100%)] md:flex-row md:items-center">
+        <Card className="flex flex-col items-start justify-between gap-6 border-2 border-border bg-primary p-8 text-primary-foreground shadow-md md:flex-row md:items-center">
           <div>
-            <Text as="h3" className="mb-2 text-2xl">
+            <Text as="h3" className="mb-2 text-2xl text-primary-foreground">
               Ready to work privately?
             </Text>
-            <p className="font-sans text-sm text-foreground/80">
+            <p className="font-sans text-sm text-primary-foreground/80">
               Join Kaizenyard — productivity with attestation built in.
             </p>
           </div>

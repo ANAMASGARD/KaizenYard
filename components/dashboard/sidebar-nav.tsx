@@ -42,10 +42,10 @@ function NavLink({
           : "gap-2.5 px-2.5 py-1.5",
         active
           ? cn(
-              "border-black bg-primary font-medium text-primary-foreground",
+              "border-border bg-primary font-medium text-primary-foreground",
               collapsed ? "shadow-none" : "shadow-sm",
             )
-          : "text-foreground hover:border-black/20 hover:bg-sidebar-accent",
+          : "text-foreground hover:border-border/20 hover:bg-sidebar-accent",
       )}
       aria-current={active ? "page" : undefined}
     >

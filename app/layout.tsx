@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
-import { shadcn } from "@clerk/ui/themes";
 import { Archivo_Black, Space_Grotesk } from "next/font/google";
-import { UserSync } from "@/components/user-sync";
+import { ClerkProviderThemed } from "@/components/clerk-provider-themed";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import { ThemedToaster } from "@/components/theme/themed-toaster";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={cn(
         "h-full antialiased",
         archivoBlack.variable,
@@ -41,10 +42,12 @@ export default async function RootLayout({
       )}
     >
       <body className="min-h-full font-sans">
-        <ClerkProvider appearance={{ theme: shadcn }}>
-          <UserSync />
-          {children}
-        </ClerkProvider>
+        <ThemeProvider>
+          <ClerkProviderThemed>
+            {children}
+            <ThemedToaster />
+          </ClerkProviderThemed>
+        </ThemeProvider>
       </body>
     </html>
   );

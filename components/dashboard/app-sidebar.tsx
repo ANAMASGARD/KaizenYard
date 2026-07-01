@@ -20,7 +20,7 @@ function SidebarPanel({
   return (
     <aside
       className={cn(
-        "flex h-screen flex-col overflow-hidden border-black bg-sidebar",
+        "flex h-screen flex-col overflow-hidden border-border bg-sidebar",
         className,
       )}
       data-force-expanded={forceExpanded || undefined}

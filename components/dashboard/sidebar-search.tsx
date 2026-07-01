@@ -87,7 +87,7 @@ export function SidebarSearch({
           {!isCollapsed && (
             <>
               <span className="flex-1 text-left">Search…</span>
-              <kbd className="hidden rounded border border-black/20 bg-muted px-1.5 py-0.5 font-sans text-[10px] sm:inline">
+              <kbd className="hidden rounded border border-border/20 bg-muted px-1.5 py-0.5 font-sans text-[10px] sm:inline">
                 ⌘K
               </kbd>
             </>

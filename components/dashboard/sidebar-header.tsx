@@ -17,7 +17,7 @@ export function SidebarHeader({
   return (
     <div
       className={cn(
-        "flex w-full shrink-0 items-center border-b-2 border-black",
+        "flex w-full shrink-0 items-center border-b-2 border-border",
         isCollapsed
           ? "flex-col gap-2 px-1.5 py-3"
           : "justify-between gap-2 px-3 py-3",

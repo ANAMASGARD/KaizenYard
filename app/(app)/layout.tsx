@@ -1,9 +1,15 @@
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { UserSync } from "@/components/user-sync";
 
-export default function AppLayout({
+export default async function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <DashboardShell>
+      <UserSync />
+      {children}
+    </DashboardShell>
+  );
 }

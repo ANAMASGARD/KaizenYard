@@ -6,7 +6,7 @@ Read this before changing code.
 
 Privacy-first productivity app. Core differentiator: **anonymous attestation** — verified customers or employees can leave feedback provably from a real group member, without identifying who.
 
-Early stage: auth + marketing landing + dashboard shell + DB user sync. Feature routes exist as skeletons; internals not built yet.
+Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+) with corporate features implemented; other feature routes are skeletons.
 
 ## Project
 
@@ -25,7 +25,7 @@ app/
     layout.tsx                DashboardShell
     dashboard/page.tsx
     assistant/page.tsx
-    calendar/page.tsx
+    calendar/page.tsx         full calendar (month/week, DnD, drafts)
     tasks/page.tsx
     notes/page.tsx
     whiteboard/page.tsx
@@ -35,12 +35,13 @@ app/
 components/
   landing/                    marketing page sections
   dashboard/                  app shell + sidebar
+  calendar/                   month/week views, draft panel, DnD, event dialog
   brand/logo.tsx              shared SVG logo
   auth-header.tsx             legacy header (unused; keep for future)
   user-sync.tsx               client: sync Clerk user → DB on visit
   retroui/                    UI kit — not components/ui/
 db/                           index.ts, schema.ts
-lib/                          utils.ts (cn), sync-user.ts, mask-email.ts
+lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/
 proxy.ts                      Clerk middleware — use this, NOT middleware.ts
 migrations/                   Drizzle SQL migrations
 memory/                       session notes for agents (memory.md)
@@ -68,7 +69,7 @@ Composed in `components/landing/landing-page.tsx`:
 
 - Wrapped in `DashboardShell` — sidebar + main content
 - All routes protected in `proxy.ts` via `auth.protect()`
-- Pages are **skeletons only** unless user asks for feature internals
+- Pages are **skeletons only** unless user asks for feature internals (calendar is implemented)
 - Settings uses Clerk `<UserProfile routing="path" path="/settings" />` in `settings-profile.tsx`
 - **Do not** add `<OrganizationSwitcher />` until Clerk Organizations is enabled in the Clerk dashboard
 
@@ -80,7 +81,7 @@ Kaizenyard uses a consistent **neo-brutalist** look. Follow these rules for all 
 
 | Token | Usage |
 |-------|--------|
-| `border-2 border-black` | Default border on cards, inputs, sidebar, buttons |
+| `border-2 border-border` | Default border on cards, inputs, sidebar, buttons (adapts in dark mode) |
 | `shadow-md` / `shadow-sm` | Hard offset shadows (not soft blur) — see `--shadow-*` in globals |
 | `bg-primary` | Yellow accent (`hsl(50 100% 60%)`) — CTAs, active nav |
 | `bg-background` | White surfaces |
@@ -90,8 +91,8 @@ Kaizenyard uses a consistent **neo-brutalist** look. Follow these rules for all 
 
 ### Patterns
 
-- **Cards / panels:** `border-2 border-black rounded shadow-md` — optional `hover:-translate-y-0.5 hover:shadow-lg` on marketing cards
-- **Active nav item:** `bg-primary border-black text-primary-foreground shadow-sm`
+- **Cards / panels:** `border-2 border-border rounded shadow-md` — optional `hover:-translate-y-0.5 hover:shadow-lg` on marketing cards
+- **Active nav item:** `bg-primary border-border text-primary-foreground shadow-sm`
 - **Buttons:** Use RetroUI `Button` with `variant="default"` (yellow), `outline`, or `secondary` — they include border + hard shadow + press translate
 - **Icon-only controls (sidebar rail):** Use `NeoHamburgerButton` or `sidebar-rail.ts` tokens — **no hard shadows** on collapsed rail (prevents overflow/clipping)
 - **Section labels:** `font-head text-[10px] uppercase tracking-[0.2em] text-muted-foreground`
@@ -104,7 +105,8 @@ Kaizenyard uses a consistent **neo-brutalist** look. Follow these rules for all 
 - Use `cn()` from `@/lib/utils` for conditional classes
 - Match existing landing + dashboard patterns before inventing new ones
 - Mask emails in compact UI via `maskEmail()` from `@/lib/mask-email`
-- Style Clerk embeds via `clerk-appearance.ts` (`border-2 border-black`, hard shadows)
+- Style Clerk embeds via `clerk-appearance.ts` (`border-2 border-border`, hard shadows)
+- **Dark mode:** `next-themes` + `ThemeToggle` (top-right); use semantic tokens (`bg-background`, `border-border`) — not hardcoded `border-black`
 
 ### Don't
 
@@ -131,7 +133,7 @@ Already in repo: `Button`, `Card`, `Text`, `Input`, `Dialog`, `Drawer`, `Command
 
 ```bash
 npm run dev | build | lint
-npm run db:generate | db:migrate   # schema changes: edit schema → generate → migrate
+npm run db:generate | db:migrate | db:check   # schema changes: edit schema → generate → migrate
 ```
 
 ## Env (copy `.env.example` → `.env`, never commit)
@@ -158,7 +160,10 @@ await db.select().from(users);
 
 - Drizzle **v1 RC** (`drizzle-orm@1.0.0-rc.4`) — see `.agents/skills/drizzle-best-practices/SKILL.md`
 - Import tables from `@/db`; don't pass `schema` into `drizzle()`
+- Postgres via `pg` + `drizzle-orm/node-postgres` (`db/pool.ts` resolves Neon over IPv4 + SNI)
 - `users` table: `clerkId` (unique), `email`, `name`, timestamps
+- `calendar_items` table: `clerkId`, `title`, `itemType`, `category`, `description`, `location`, `scheduledAt`, `durationMin`, `recurrenceRule`, `bufferBeforeMin`, `bufferAfterMin`, `isPrivate`, `attendeeCount`, timestamps — scoped per user via server actions in `lib/calendar/actions.ts`
+- Related tables: `calendar_item_exceptions`, `calendar_settings`, `calendar_meeting_pulses`, `calendar_pulse_votes`
 
 ## Rules
 

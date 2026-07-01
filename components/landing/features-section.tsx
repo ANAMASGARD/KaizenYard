@@ -44,7 +44,7 @@ export function FeaturesSection() {
   return (
     <section
       id="features"
-      className="border-b-2 border-black bg-background px-6 py-20 sm:px-10 md:px-16 lg:px-20"
+      className="border-b-2 border-border bg-background px-6 py-20 sm:px-10 md:px-16 lg:px-20"
     >
       <div className="mx-auto max-w-6xl">
         <div className="mb-12 max-w-2xl">
@@ -64,9 +64,9 @@ export function FeaturesSection() {
           {FEATURES.map((feature) => (
             <Card
               key={feature.title}
-              className="flex h-full flex-col border-2 border-black bg-card p-6 shadow-md transition-all hover:-translate-y-1 hover:shadow-lg"
+              className="flex h-full flex-col border-2 border-border bg-card p-6 shadow-md transition-all hover:-translate-y-1 hover:shadow-lg"
             >
-              <span className="mb-4 inline-block w-fit border-2 border-black bg-primary px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider">
+              <span className="mb-4 inline-block w-fit border-2 border-border bg-primary px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider">
                 {feature.tag}
               </span>
               <Text as="h3" className="mb-2 text-xl">

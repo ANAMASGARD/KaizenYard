@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 
 import { NeoHamburgerButton } from "@/components/dashboard/neo-hamburger-button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 function MobileTopBar() {
   const pathname = usePathname();
@@ -15,11 +16,12 @@ function MobileTopBar() {
   const current = getNavItemByPathname(pathname);
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b-2 border-black bg-background px-4 lg:hidden">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b-2 border-border bg-background px-4 lg:hidden">
       <NeoHamburgerButton onClick={() => setMobileOpen(true)} label="Open menu" />
-      <p className="truncate font-head text-sm font-semibold">
+      <p className="min-w-0 flex-1 truncate font-head text-sm font-semibold">
         {current?.label ?? "Kaizenyard"}
       </p>
+      <ThemeToggle />
     </header>
   );
 }
@@ -45,6 +47,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
       <MobileSidebarDrawer />
+      <ThemeToggle className="fixed top-5 right-5 z-50 hidden lg:inline-flex" />
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <MobileTopBar />
         <main className={cn("flex-1 overflow-auto p-4 sm:p-6 lg:p-8")}>

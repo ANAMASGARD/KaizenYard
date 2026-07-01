@@ -24,7 +24,7 @@ export function AttestationSection() {
   return (
     <section
       id="attestation"
-      className="border-b-2 border-black bg-primary px-6 py-20 sm:px-10 md:px-16 lg:px-20"
+      className="border-b-2 border-border bg-primary px-6 py-20 sm:px-10 md:px-16 lg:px-20"
     >
       <div className="mx-auto max-w-6xl">
         <div className="mb-12 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -32,7 +32,7 @@ export function AttestationSection() {
             <Badge
               variant="outline"
               size="sm"
-              className="mb-4 border-2 border-black bg-background"
+              className="mb-4 border-2 border-border bg-background"
             >
               Flagship feature
             </Badge>
@@ -45,7 +45,7 @@ export function AttestationSection() {
               privacy.
             </p>
           </div>
-          <Card className="w-full max-w-sm border-2 border-black bg-background p-6 shadow-lg lg:w-auto">
+          <Card className="w-full max-w-sm border-2 border-border bg-background p-6 shadow-lg lg:w-auto">
             <p className="font-head text-sm font-bold uppercase tracking-wide">
               The promise
             </p>
@@ -60,7 +60,7 @@ export function AttestationSection() {
           {STEPS.map((item) => (
             <Card
               key={item.step}
-              className="border-2 border-black bg-background p-6 shadow-md"
+              className="border-2 border-border bg-background p-6 shadow-md"
             >
               <span className="font-head text-4xl font-bold text-muted-foreground/40">
                 {item.step}

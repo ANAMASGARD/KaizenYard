@@ -15,7 +15,7 @@ export function SkeletonPage({
       <Text as="h1" className="mb-6">
         {title}
       </Text>
-      <Card className="border-2 border-black p-6 shadow-md">
+      <Card className="border-2 border-border p-6 shadow-md">
         <p className="font-sans text-muted-foreground">{description}</p>
       </Card>
     </div>
