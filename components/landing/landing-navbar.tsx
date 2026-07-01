@@ -3,6 +3,7 @@
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/retroui/Button";
 import { cn } from "@/lib/utils";
 
@@ -12,24 +13,6 @@ const NAV_LINKS = [
   { href: "#roadmap", label: "Roadmap" },
   { href: "#privacy", label: "Privacy" },
 ] as const;
-
-function Logo() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="32"
-      height="32"
-      viewBox="0 0 256 256"
-      fill="none"
-      aria-hidden
-    >
-      <path
-        d="M 32 0 L 128 0 L 192 64 L 192 128 L 128 192 L 32 192 L 0 160 L 0 32 Z M 64 64 L 64 128 L 128 128 L 128 64 Z M 160 64 L 224 64 L 256 96 L 256 160 L 224 192 L 160 192 L 128 160 L 128 96 Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
 
 export function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -93,7 +76,7 @@ export function LandingNavbar() {
 
           <div className="hidden items-center gap-3 lg:flex">
             <Show when="signed-out">
-              <SignInButton mode="redirect" forceRedirectUrl="/">
+              <SignInButton mode="redirect" forceRedirectUrl="/dashboard">
                 <Button
                   variant="outline"
                   size="sm"
@@ -106,7 +89,7 @@ export function LandingNavbar() {
                   Sign in
                 </Button>
               </SignInButton>
-              <SignUpButton mode="redirect" forceRedirectUrl="/">
+              <SignUpButton mode="redirect" forceRedirectUrl="/dashboard">
                 <Button
                   size="sm"
                   className={cn(
@@ -191,7 +174,7 @@ export function LandingNavbar() {
           style={{ animationDelay: "400ms" }}
         >
           <Show when="signed-out">
-            <SignInButton mode="redirect" forceRedirectUrl="/">
+            <SignInButton mode="redirect" forceRedirectUrl="/dashboard">
               <Button
                 variant="outline"
                 size="lg"
@@ -201,7 +184,7 @@ export function LandingNavbar() {
                 Sign in
               </Button>
             </SignInButton>
-            <SignUpButton mode="redirect" forceRedirectUrl="/">
+            <SignUpButton mode="redirect" forceRedirectUrl="/dashboard">
               <Button size="lg" className="w-full py-4" onClick={closeMenu}>
                 Get started
               </Button>

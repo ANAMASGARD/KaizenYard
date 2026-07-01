@@ -53,21 +53,26 @@ function DrawerContent({
   return (
     <DrawerPortal data-slot="drawer-portal">
       <DrawerBackdrop />
-      <BaseDrawer.Popup
-        data-slot="drawer-content"
-        className={cn(
-          "group/drawer-content bg-background fixed z-50 flex h-auto flex-col",
-          "data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:mb-24 data-[side=top]:max-h-[80vh] data-[side=top]:rounded-b data-[side=top]:border-b-2",
-          "data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:mt-24 data-[side=bottom]:max-h-[80vh] data-[side=bottom]:rounded-t data-[side=bottom]:border-t-2",
-          "data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:w-3/4 data-[side=right]:border-l-2 data-[side=right]:sm:max-w-sm",
-          "data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:w-3/4 data-[side=left]:border-r-2 data-[side=left]:sm:max-w-sm",
-          className
-        )}
-        {...props}
+      <BaseDrawer.Viewport
+        data-slot="drawer-viewport"
+        className="fixed inset-0 z-50 flex"
       >
-        <div className="bg-foreground mx-auto mt-4 hidden h-1 w-[60px] shrink-0 rounded-full group-data-[side=bottom]/drawer-content:block" />
-        {children}
-      </BaseDrawer.Popup>
+        <BaseDrawer.Popup
+          data-slot="drawer-content"
+          className={cn(
+            "group/drawer-content bg-background flex h-auto flex-col",
+            "data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:mb-24 data-[side=top]:max-h-[80vh] data-[side=top]:rounded-b data-[side=top]:border-b-2",
+            "data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:mt-24 data-[side=bottom]:max-h-[80vh] data-[side=bottom]:rounded-t data-[side=bottom]:border-t-2",
+            "data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:w-3/4 data-[side=right]:border-l-2 data-[side=right]:sm:max-w-sm",
+            "data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:w-3/4 data-[side=left]:border-r-2 data-[side=left]:sm:max-w-sm",
+            className
+          )}
+          {...props}
+        >
+          <div className="bg-foreground mx-auto mt-4 hidden h-1 w-[60px] shrink-0 rounded-full group-data-[side=bottom]/drawer-content:block" />
+          {children}
+        </BaseDrawer.Popup>
+      </BaseDrawer.Viewport>
     </DrawerPortal>
   )
 }
@@ -125,6 +130,7 @@ const DrawerComponent = Object.assign(Drawer, {
     Trigger: DrawerTrigger,
     Portal: DrawerPortal,
     Backdrop: DrawerBackdrop,
+    Viewport: BaseDrawer.Viewport,
     Close: DrawerClose,
     Content: DrawerContent,
     Header: DrawerHeader,

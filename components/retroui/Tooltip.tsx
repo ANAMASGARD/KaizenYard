@@ -28,18 +28,38 @@ const Tooltip = BaseTooltip.Root;
 
 const TooltipTrigger = BaseTooltip.Trigger;
 
-const TooltipContent = ({ className, variant, ref, ...props }: React.ComponentPropsWithRef<typeof BaseTooltip.Popup> & VariantProps<typeof tooltipContentVariants>) => (
+const TooltipContent = ({
+  className,
+  variant,
+  side = "top",
+  align = "center",
+  sideOffset = 4,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof BaseTooltip.Popup> &
+  VariantProps<typeof tooltipContentVariants> &
+  Pick<
+    BaseTooltip.Positioner.Props,
+    "align" | "side" | "sideOffset"
+  >) => (
   <BaseTooltip.Portal>
-    <BaseTooltip.Popup
-      ref={ref}
-      className={cn(
-        tooltipContentVariants({
-          variant,
-          className,
-        }),
-      )}
-      {...props}
-    />
+    <BaseTooltip.Positioner
+      side={side}
+      align={align}
+      sideOffset={sideOffset}
+      className="isolate z-50"
+    >
+      <BaseTooltip.Popup
+        ref={ref}
+        className={cn(
+          tooltipContentVariants({
+            variant,
+            className,
+          }),
+        )}
+        {...props}
+      />
+    </BaseTooltip.Positioner>
   </BaseTooltip.Portal>
 );
 
