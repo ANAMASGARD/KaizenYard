@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus, Users } from "lucide-react";
 import { deleteBoard } from "@/lib/kanban/actions";
 import { COLOR_META } from "@/lib/kanban/colors";
 import type { BoardRecord } from "@/lib/kanban/types";
@@ -91,6 +91,12 @@ export function BoardSidebar({
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1 truncate">{board.name}</span>
+                      {board.role !== "owner" ? (
+                        <Users
+                          className="size-3.5 shrink-0 text-violet-600 dark:text-violet-400"
+                          aria-label="Shared board"
+                        />
+                      ) : null}
                       <MoreHorizontal
                         className={cn(
                           "size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-60",
@@ -102,16 +108,24 @@ export function BoardSidebar({
                   }
                 />
                 <ContextMenu.Content>
-                  <ContextMenu.Item onClick={() => onEditBoard(board)}>
-                    Rename / change color
-                  </ContextMenu.Item>
-                  <ContextMenu.Separator />
-                  <ContextMenu.Item
-                    className="text-red-600 dark:text-red-400"
-                    onClick={() => void handleDelete(board)}
-                  >
-                    Delete board
-                  </ContextMenu.Item>
+                  {board.role === "owner" ? (
+                    <>
+                      <ContextMenu.Item onClick={() => onEditBoard(board)}>
+                        Rename / change color
+                      </ContextMenu.Item>
+                      <ContextMenu.Separator />
+                      <ContextMenu.Item
+                        className="text-red-600 dark:text-red-400"
+                        onClick={() => void handleDelete(board)}
+                      >
+                        Delete board
+                      </ContextMenu.Item>
+                    </>
+                  ) : (
+                    <ContextMenu.Item disabled>
+                      Shared board ({board.role})
+                    </ContextMenu.Item>
+                  )}
                 </ContextMenu.Content>
               </ContextMenu>
             );

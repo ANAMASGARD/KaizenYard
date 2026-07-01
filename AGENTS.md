@@ -26,7 +26,7 @@ app/
     dashboard/page.tsx
     assistant/page.tsx
     calendar/page.tsx         full calendar (month/week, DnD, drafts)
-    tasks/page.tsx             full kanban (boards, columns, DnD, calendar sync)
+    tasks/page.tsx             full kanban (boards, columns, DnD, calendar sync, Liveblocks collaboration)
     notes/page.tsx
     whiteboard/page.tsx
     pages/page.tsx
@@ -36,13 +36,14 @@ components/
   landing/                    marketing page sections
   dashboard/                  app shell + sidebar
   calendar/                   month/week views, draft panel, DnD, event dialog
-  kanban/                     boards sidebar, columns, cards, task dialog, DnD
+  kanban/                     boards sidebar, columns, cards, task dialog, DnD, collaboration, comments
   brand/logo.tsx              shared SVG logo
   auth-header.tsx             legacy header (unused; keep for future)
   user-sync.tsx               client: sync Clerk user → DB on visit
   retroui/                    UI kit — not components/ui/
 db/                           index.ts, schema.ts
-lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/
+lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, liveblocks/
+app/api/liveblocks-auth/      Liveblocks room auth (Clerk + board role)
 proxy.ts                      Clerk middleware — use this, NOT middleware.ts
 migrations/                   Drizzle SQL migrations
 memory/                       session notes for agents (memory.md)
@@ -139,11 +140,11 @@ npm run db:generate | db:migrate | db:check   # schema changes: edit schema → 
 
 ## Env (copy `.env.example` → `.env`, never commit)
 
-`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`. Do not read or print `.env`.
+`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed). Do not read or print `.env`.
 
 ## Clerk
 
-- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes; `await auth.protect()` on match
+- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`; `await auth.protect()` on match
 - `ClerkProvider` inside `<body>` in `app/layout.tsx`, `appearance={{ theme: shadcn }}`
 - `await auth()` from `@clerk/nextjs/server` — always async
 - Use `@clerk/nextjs`, not `@clerk/clerk-react`
@@ -165,7 +166,19 @@ await db.select().from(users);
 - `users` table: `clerkId` (unique), `email`, `name`, timestamps
 - `calendar_items` table: `clerkId`, `title`, `itemType`, `category`, `description`, `location`, `scheduledAt`, `durationMin`, `recurrenceRule`, `bufferBeforeMin`, `bufferAfterMin`, `isPrivate`, `attendeeCount`, timestamps — scoped per user via server actions in `lib/calendar/actions.ts`
 - Related tables: `calendar_item_exceptions`, `calendar_settings`, `calendar_meeting_pulses`, `calendar_pulse_votes`
-- `kanban_boards`, `kanban_columns`, `kanban_tasks` — per-user boards with columns, tasks, optional `calendarItemId` sync; server actions in `lib/kanban/actions.ts`
+- `kanban_boards`, `kanban_columns`, `kanban_tasks` — boards with columns, tasks, optional `calendarItemId` sync; server actions in `lib/kanban/actions.ts`
+- `kanban_board_collaborators` — email invites per board (`editor` | `viewer`); pending until invitee signs up; access in `lib/kanban/access.ts`, invites in `lib/kanban/collaboration-actions.ts`
+- Related kanban tables: `kanban_task_pulses`, `kanban_task_pulse_votes`, `kanban_automations`
+
+## Liveblocks (Kanban collaboration)
+
+- Packages: `@liveblocks/client`, `@liveblocks/react`, `@liveblocks/node` (same version)
+- **Auth-endpoint mode** — client uses `LiveblocksProvider authEndpoint="/api/liveblocks-auth"`, not `publicApiKey`
+- Room per board: `kanban:board:{boardId}` (`lib/kanban/room.ts` — safe for client imports)
+- Server access checks: `lib/kanban/access.ts` — **never import from client components** (pulls in `db`)
+- Types: `lib/liveblocks/config.ts` — `Presence`, `UserMeta`, `ThreadMetadata: { taskId }`, `RoomEvent: { type: "board-changed" }`
+- Postgres remains source of truth; Liveblocks handles presence, task comment threads, and board-change broadcast sync
+- Reuse room ID pattern later: `calendar:user:{userId}`, `notes:page:{pageId}`, `ai:chat:{sessionId}`, etc.
 
 ## Rules
 

@@ -1,5 +1,6 @@
 import type { KanbanColor } from "@/lib/kanban/colors";
 import type { KanbanLabel, KanbanPriority } from "@/lib/kanban/labels";
+import type { BoardRole } from "@/lib/kanban/room";
 
 export type BoardRecord = {
   id: number;
@@ -7,6 +8,7 @@ export type BoardRecord = {
   name: string;
   color: KanbanColor;
   sortOrder: number;
+  role: BoardRole;
   createdAt: string;
   updatedAt: string;
 };
@@ -44,6 +46,7 @@ export type BoardData = {
   columns: ColumnRecord[];
   tasks: TaskRecord[];
   pulseRiskByTaskId: Record<number, { atRisk: number; blocked: number }>;
+  role: BoardRole;
 };
 
 export type TaskMutationOptions = {

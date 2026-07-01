@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import {
+  ClientSideSuspense,
+  LiveblocksProvider,
+  RoomProvider,
+} from "@liveblocks/react/suspense";
 import {
   DndContext,
   DragOverlay,
@@ -18,11 +23,13 @@ import {
   arrayMove,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { LayoutGrid, Plus, Zap } from "lucide-react";
+import { LayoutGrid, Plus, Users, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { ActiveCollaborators } from "@/components/kanban/active-collaborators";
 import { AutomationPanel } from "@/components/kanban/automation-panel";
 import { BoardDialog } from "@/components/kanban/board-dialog";
 import { BoardSidebar } from "@/components/kanban/board-sidebar";
+import { CollaborationPanel } from "@/components/kanban/collaboration-panel";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { KanbanCard } from "@/components/kanban/kanban-card";
 import { TaskDialog } from "@/components/kanban/task-dialog";
@@ -36,7 +43,10 @@ import {
   reorderColumns,
   updateColumn,
 } from "@/lib/kanban/actions";
+import { kanbanBoardRoomId, type BoardRole } from "@/lib/kanban/room";
 import type { KanbanColor } from "@/lib/kanban/colors";
+import { useBoardRealtimeSync } from "@/lib/kanban/use-board-realtime-sync";
+import "@/lib/liveblocks/config";
 import type {
   BoardData,
   BoardRecord,
@@ -76,7 +86,183 @@ function findContainerId(
   return null;
 }
 
+type KanbanLiveBoardProps = {
+  notifyRef: MutableRefObject<(() => void) | null>;
+  boardId: number;
+  boardRole: BoardRole;
+  activeBoard: BoardRecord;
+  columns: ColumnRecord[];
+  tasks: TaskRecord[];
+  pulseRiskByTaskId: Record<number, { atRisk: number; blocked: number }>;
+  collaborationOpen: boolean;
+  onCollaborationOpenChange: (open: boolean) => void;
+  onAutomationPanelOpenChange: (open: boolean) => void;
+  taskDialogOpen: boolean;
+  onTaskDialogOpenChange: (open: boolean) => void;
+  taskDefaults: TaskDialogDefaults | null;
+  activeDragTask: TaskRecord | null;
+  onDragStart: (event: DragStartEvent) => void;
+  onDragOver: (event: DragOverEvent) => void;
+  onDragEnd: (event: DragEndEvent) => void;
+  onDragCancel: () => void;
+  onAddTask: (columnId: number) => void;
+  onEditTask: (task: TaskRecord) => void;
+  onColumnCreated: (column: ColumnRecord) => void;
+  onRenameColumn: (columnId: number, name: string) => void;
+  onChangeColumnColor: (columnId: number, color: KanbanColor) => void;
+  onMoveColumnLeft: (columnId: number) => void;
+  onMoveColumnRight: (columnId: number) => void;
+  onDeleteColumn: (columnId: number) => void;
+  onTaskSaved: (task: TaskRecord) => void;
+  onTaskDeleted: (taskId: number) => void;
+  onRemoteRefresh: () => void;
+  sensors: ReturnType<typeof useSensors>;
+};
+
+function KanbanLiveBoard({
+  notifyRef,
+  boardId,
+  boardRole,
+  activeBoard,
+  columns,
+  tasks,
+  pulseRiskByTaskId,
+  collaborationOpen,
+  onCollaborationOpenChange,
+  onAutomationPanelOpenChange,
+  taskDialogOpen,
+  onTaskDialogOpenChange,
+  taskDefaults,
+  activeDragTask,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  onDragCancel,
+  onAddTask,
+  onEditTask,
+  onColumnCreated,
+  onRenameColumn,
+  onChangeColumnColor,
+  onMoveColumnLeft,
+  onMoveColumnRight,
+  onDeleteColumn,
+  onTaskSaved,
+  onTaskDeleted,
+  onRemoteRefresh,
+  sensors,
+}: KanbanLiveBoardProps) {
+  const { notifyBoardChanged } = useBoardRealtimeSync(onRemoteRefresh);
+
+  useEffect(() => {
+    notifyRef.current = notifyBoardChanged;
+  }, [notifyBoardChanged, notifyRef]);
+
+  const readOnly = boardRole === "viewer";
+
+  return (
+    <>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b-2 border-border pb-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+          <h2 className="font-head text-lg">{activeBoard.name}</h2>
+          <ActiveCollaborators />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onCollaborationOpenChange(true)}
+          >
+            <Users className="size-4 text-violet-600" />
+            Collaborate
+          </Button>
+          {!readOnly ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onAutomationPanelOpenChange(true)}
+            >
+              <Zap className="size-4 text-amber-600" />
+              Automations
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      <DndContext
+        sensors={readOnly ? [] : sensors}
+        collisionDetection={closestCorners}
+        onDragStart={readOnly ? undefined : onDragStart}
+        onDragOver={readOnly ? undefined : onDragOver}
+        onDragEnd={readOnly ? undefined : (e) => onDragEnd(e)}
+        onDragCancel={onDragCancel}
+      >
+        <KanbanBoard
+          boardId={boardId}
+          boardRole={boardRole}
+          columns={columns}
+          tasks={tasks}
+          pulseRiskByTaskId={pulseRiskByTaskId}
+          onAddTask={onAddTask}
+          onEditTask={onEditTask}
+          onColumnCreated={onColumnCreated}
+          onRenameColumn={onRenameColumn}
+          onChangeColumnColor={onChangeColumnColor}
+          onMoveColumnLeft={onMoveColumnLeft}
+          onMoveColumnRight={onMoveColumnRight}
+          onDeleteColumn={onDeleteColumn}
+        />
+
+        <DragOverlay>
+          {activeDragTask ? (
+            (() => {
+              const col =
+                columns.find((c) => c.id === activeDragTask.columnId) ??
+                columns[0];
+              if (!col) return null;
+              return (
+                <KanbanCard
+                  task={activeDragTask}
+                  column={col}
+                  onEdit={() => {}}
+                  showDragHandle={false}
+                  overlay
+                />
+              );
+            })()
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
+      <TaskDialog
+        open={taskDialogOpen}
+        onOpenChange={onTaskDialogOpenChange}
+        defaults={taskDefaults}
+        boardRole={boardRole}
+        onSaved={onTaskSaved}
+        onDeleted={onTaskDeleted}
+      />
+
+      <CollaborationPanel
+        boardId={boardId}
+        isOwner={boardRole === "owner"}
+        open={collaborationOpen}
+        onOpenChange={onCollaborationOpenChange}
+      />
+    </>
+  );
+}
+
 export function KanbanPage() {
+  return (
+    <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
+      <KanbanPageContent />
+    </LiveblocksProvider>
+  );
+}
+
+function KanbanPageContent() {
   const [boards, setBoards] = useState<BoardRecord[]>([]);
   const [activeBoardId, setActiveBoardId] = useState<number | null>(null);
   const [columns, setColumns] = useState<ColumnRecord[]>([]);
@@ -85,8 +271,10 @@ export function KanbanPage() {
     Record<number, { atRisk: number; blocked: number }>
   >({});
   const [loading, setLoading] = useState(true);
+  const [boardRole, setBoardRole] = useState<BoardRole>("owner");
   const [boardDialogOpen, setBoardDialogOpen] = useState(false);
   const [automationPanelOpen, setAutomationPanelOpen] = useState(false);
+  const [collaborationPanelOpen, setCollaborationPanelOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState<BoardRecord | null>(null);
   const [mobileBoardsOpen, setMobileBoardsOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
@@ -96,6 +284,11 @@ export function KanbanPage() {
   const [activeDragTask, setActiveDragTask] = useState<TaskRecord | null>(null);
   const tasksSnapshotRef = useRef<TaskRecord[]>([]);
   const tasksRef = useRef<TaskRecord[]>([]);
+  const notifyBoardChangedRef = useRef<(() => void) | null>(null);
+
+  function notifyBoardChanged() {
+    notifyBoardChangedRef.current?.();
+  }
 
   useEffect(() => {
     tasksRef.current = tasks;
@@ -115,6 +308,7 @@ export function KanbanPage() {
 
   const loadBoardData = useCallback(async (boardId: number) => {
     const data = await listBoardData(boardId);
+    setBoardRole(data.role);
     setColumns(data.columns);
     setTasks(data.tasks);
     setPulseRiskByTaskId(data.pulseRiskByTaskId);
@@ -143,6 +337,10 @@ export function KanbanPage() {
   }, [loadBoardData]);
 
   async function selectBoard(boardId: number) {
+    const board = boards.find((b) => b.id === boardId);
+    if (board) {
+      setBoardRole(board.role);
+    }
     setActiveBoardId(boardId);
     setMobileBoardsOpen(false);
     await loadBoardData(boardId);
@@ -187,6 +385,7 @@ export function KanbanPage() {
     if ("columns" in result) {
       setBoards((prev) => [...prev, result.board]);
       setActiveBoardId(result.board.id);
+      setBoardRole(result.role);
       setColumns(result.columns);
       setTasks(result.tasks);
       return;
@@ -212,6 +411,7 @@ export function KanbanPage() {
   }
 
   function openCreateTask(columnId: number) {
+    if (boardRole === "viewer") return;
     setTaskDefaults({ columnId });
     setTaskDialogOpen(true);
   }
@@ -226,6 +426,7 @@ export function KanbanPage() {
     setColumns((prev) =>
       prev.map((c) => (c.id === columnId ? saved : c)),
     );
+    notifyBoardChanged();
   }
 
   async function handleChangeColumnColor(columnId: number, color: KanbanColor) {
@@ -233,9 +434,11 @@ export function KanbanPage() {
     setColumns((prev) =>
       prev.map((c) => (c.id === columnId ? saved : c)),
     );
+    notifyBoardChanged();
   }
 
   async function handleMoveColumn(columnId: number, direction: "left" | "right") {
+    if (boardRole === "viewer") return;
     const sorted = [...columns].sort(
       (a, b) => a.sortOrder - b.sortOrder || a.id - b.id,
     );
@@ -250,17 +453,21 @@ export function KanbanPage() {
       reordered.map((c) => c.id),
     );
     setColumns(updated);
+    notifyBoardChanged();
   }
 
   async function handleDeleteColumn(columnId: number) {
+    if (boardRole === "viewer") return;
     if (!confirm("Delete this column? Tasks will move to another column.")) return;
     await deleteColumn(columnId);
     if (activeBoardId) {
       await loadBoardData(activeBoardId);
+      notifyBoardChanged();
     }
   }
 
   function handleDragStart(event: DragStartEvent) {
+    if (boardRole === "viewer") return;
     const taskId = parseTaskDragId(String(event.active.id));
     if (taskId === null) return;
     const task = tasks.find((t) => t.id === taskId) ?? null;
@@ -321,6 +528,7 @@ export function KanbanPage() {
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (boardRole === "viewer") return;
     setActiveDragTask(null);
     const { active, over } = event;
     if (!over) return;
@@ -382,6 +590,7 @@ export function KanbanPage() {
       if (activeBoardId) {
         void loadBoardData(activeBoardId);
       }
+      notifyBoardChanged();
     } catch {
       setTasks(snapshot);
       toast.error("Failed to move task");
@@ -461,76 +670,75 @@ export function KanbanPage() {
           />
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded border-2 border-border bg-background p-3 shadow-md sm:p-4">
-            {activeBoard ? (
-              <div className="mb-3 flex items-center justify-between gap-2 border-b-2 border-border pb-3">
-                <h2 className="font-head text-lg">{activeBoard.name}</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAutomationPanelOpen(true)}
+            {activeBoard && activeBoardId ? (
+              <RoomProvider
+                id={kanbanBoardRoomId(activeBoardId)}
+                key={activeBoardId}
+              >
+                <ClientSideSuspense
+                  fallback={
+                    <div className="flex min-h-[16rem] items-center justify-center">
+                      <p className="font-head text-sm uppercase tracking-wider text-muted-foreground">
+                        Connecting…
+                      </p>
+                    </div>
+                  }
                 >
-                  <Zap className="size-4 text-amber-600" />
-                  Automations
-                </Button>
-              </div>
+                  <KanbanLiveBoard
+                    notifyRef={notifyBoardChangedRef}
+                    boardId={activeBoardId}
+                    boardRole={boardRole}
+                    activeBoard={activeBoard}
+                    columns={columns}
+                    tasks={tasks}
+                    pulseRiskByTaskId={pulseRiskByTaskId}
+                    collaborationOpen={collaborationPanelOpen}
+                    onCollaborationOpenChange={setCollaborationPanelOpen}
+                    onAutomationPanelOpenChange={setAutomationPanelOpen}
+                    taskDialogOpen={taskDialogOpen}
+                    onTaskDialogOpenChange={setTaskDialogOpen}
+                    taskDefaults={taskDefaults}
+                    activeDragTask={activeDragTask}
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
+                    onDragEnd={(e) => void handleDragEnd(e)}
+                    onDragCancel={() => setActiveDragTask(null)}
+                    onAddTask={openCreateTask}
+                    onEditTask={openEditTask}
+                    onColumnCreated={(col) => {
+                      setColumns((prev) => [...prev, col]);
+                      notifyBoardChanged();
+                    }}
+                    onRenameColumn={(id, name) =>
+                      void handleRenameColumn(id, name)
+                    }
+                    onChangeColumnColor={(id, color) =>
+                      void handleChangeColumnColor(id, color)
+                    }
+                    onMoveColumnLeft={(id) =>
+                      void handleMoveColumn(id, "left")
+                    }
+                    onMoveColumnRight={(id) =>
+                      void handleMoveColumn(id, "right")
+                    }
+                    onDeleteColumn={(id) => void handleDeleteColumn(id)}
+                    onTaskSaved={(saved) => {
+                      upsertTask(saved);
+                      if (activeBoardId) void loadBoardData(activeBoardId);
+                      notifyBoardChanged();
+                    }}
+                    onTaskDeleted={(taskId) => {
+                      removeTask(taskId);
+                      notifyBoardChanged();
+                    }}
+                    onRemoteRefresh={() => {
+                      if (activeBoardId) void loadBoardData(activeBoardId);
+                    }}
+                    sensors={sensors}
+                  />
+                </ClientSideSuspense>
+              </RoomProvider>
             ) : null}
-
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCorners}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragEnd={(e) => void handleDragEnd(e)}
-              onDragCancel={() => setActiveDragTask(null)}
-            >
-              {activeBoardId ? (
-                <KanbanBoard
-                  boardId={activeBoardId}
-                  columns={columns}
-                  tasks={tasks}
-                  pulseRiskByTaskId={pulseRiskByTaskId}
-                  onAddTask={openCreateTask}
-                  onEditTask={openEditTask}
-                  onColumnCreated={(col) =>
-                    setColumns((prev) => [...prev, col])
-                  }
-                  onRenameColumn={(id, name) =>
-                    void handleRenameColumn(id, name)
-                  }
-                  onChangeColumnColor={(id, color) =>
-                    void handleChangeColumnColor(id, color)
-                  }
-                  onMoveColumnLeft={(id) =>
-                    void handleMoveColumn(id, "left")
-                  }
-                  onMoveColumnRight={(id) =>
-                    void handleMoveColumn(id, "right")
-                  }
-                  onDeleteColumn={(id) => void handleDeleteColumn(id)}
-                />
-              ) : null}
-
-              <DragOverlay>
-                {activeDragTask ? (
-                  (() => {
-                    const col =
-                      columns.find((c) => c.id === activeDragTask.columnId) ??
-                      columns[0];
-                    if (!col) return null;
-                    return (
-                      <KanbanCard
-                        task={activeDragTask}
-                        column={col}
-                        onEdit={() => {}}
-                        showDragHandle={false}
-                        overlay
-                      />
-                    );
-                  })()
-                ) : null}
-              </DragOverlay>
-            </DndContext>
           </div>
         </div>
       )}
@@ -540,17 +748,6 @@ export function KanbanPage() {
         onOpenChange={setBoardDialogOpen}
         editing={editingBoard}
         onSaved={handleBoardSaved}
-      />
-
-      <TaskDialog
-        open={taskDialogOpen}
-        onOpenChange={setTaskDialogOpen}
-        defaults={taskDefaults}
-        onSaved={(saved) => {
-          upsertTask(saved);
-          if (activeBoardId) void loadBoardData(activeBoardId);
-        }}
-        onDeleted={removeTask}
       />
 
       {activeBoardId ? (

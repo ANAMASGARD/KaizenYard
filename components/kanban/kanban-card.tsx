@@ -2,11 +2,12 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, GripVertical, NotebookPen, ShieldAlert } from "lucide-react";
+import { Calendar, GripVertical, MessageSquare, NotebookPen, ShieldAlert } from "lucide-react";
 import { COLOR_META } from "@/lib/kanban/colors";
 import { LABEL_META, PRIORITY_META } from "@/lib/kanban/labels";
 import type { ColumnRecord, TaskRecord } from "@/lib/kanban/types";
 import { taskDragId } from "@/lib/kanban/types";
+import { useTaskCommentCount } from "@/components/kanban/task-thread-counts-context";
 import { cn } from "@/lib/utils";
 
 type KanbanCardProps = {
@@ -14,6 +15,7 @@ type KanbanCardProps = {
   column: ColumnRecord;
   onEdit: (task: TaskRecord) => void;
   showDragHandle?: boolean;
+  readOnly?: boolean;
   overlay?: boolean;
   pulseRisk?: { atRisk: number; blocked: number };
 };
@@ -31,11 +33,13 @@ export function KanbanCard({
   column,
   onEdit,
   showDragHandle = true,
+  readOnly = false,
   overlay = false,
   pulseRisk,
 }: KanbanCardProps) {
   const columnMeta = COLOR_META[column.color];
   const priorityMeta = PRIORITY_META[task.priority];
+  const commentCount = useTaskCommentCount(task.id);
 
   const {
     attributes,
@@ -47,6 +51,7 @@ export function KanbanCard({
   } = useSortable({
     id: taskDragId(task.id),
     data: { type: "task", task, columnId: column.id },
+    disabled: readOnly || overlay,
   });
 
   const style = {
@@ -66,7 +71,7 @@ export function KanbanCard({
       )}
     >
       <div className="flex items-start gap-1.5">
-        {showDragHandle ? (
+        {showDragHandle && !readOnly ? (
           <button
             type="button"
             className="mt-0.5 shrink-0 cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
@@ -109,6 +114,13 @@ export function KanbanCard({
             {task.dueDate ? (
               <span className="font-sans text-[10px] text-muted-foreground">
                 {formatDueDate(task.dueDate)}
+              </span>
+            ) : null}
+
+            {commentCount > 0 ? (
+              <span className="inline-flex items-center gap-0.5 font-sans text-[10px] text-muted-foreground">
+                <MessageSquare className="size-3" aria-hidden />
+                {commentCount}
               </span>
             ) : null}
           </div>

@@ -245,6 +245,31 @@ export const kanbanAutomations = pgTable(
   (table) => [index("kanban_automations_board_sort_idx").on(table.boardId, table.sortOrder)],
 );
 
+export const kanbanBoardCollaborators = pgTable(
+  "kanban_board_collaborators",
+  {
+    id: serial("id").primaryKey(),
+    boardId: integer("board_id")
+      .notNull()
+      .references(() => kanbanBoards.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    clerkId: text("clerk_id"),
+    role: text("role").notNull().default("editor"),
+    invitedByClerkId: text("invited_by_clerk_id").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("kanban_board_collaborators_board_email_idx").on(
+      table.boardId,
+      table.email,
+    ),
+    index("kanban_board_collaborators_clerk_id_idx").on(table.clerkId),
+  ],
+);
+
 export type KanbanTaskPulse = typeof kanbanTaskPulses.$inferSelect;
 export type KanbanTaskPulseVote = typeof kanbanTaskPulseVotes.$inferSelect;
 export type KanbanAutomation = typeof kanbanAutomations.$inferSelect;
+export type KanbanBoardCollaborator = typeof kanbanBoardCollaborators.$inferSelect;

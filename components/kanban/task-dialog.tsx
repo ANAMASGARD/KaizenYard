@@ -10,7 +10,9 @@ import {
   type KanbanLabel,
   type KanbanPriority,
 } from "@/lib/kanban/labels";
+import type { BoardRole } from "@/lib/kanban/room";
 import type { TaskDialogDefaults, TaskRecord } from "@/lib/kanban/types";
+import { TaskComments } from "@/components/kanban/task-comments";
 import { TaskPulsePanel } from "@/components/kanban/task-pulse-panel";
 import { Button } from "@/components/retroui/Button";
 import { Dialog } from "@/components/retroui/Dialog";
@@ -49,12 +51,14 @@ type TaskDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaults: TaskDialogDefaults | null;
+  boardRole: BoardRole;
   onSaved: (task: TaskRecord) => void;
   onDeleted?: (taskId: number) => void;
 };
 
 type TaskDialogFormProps = {
   defaults: TaskDialogDefaults | null;
+  boardRole: BoardRole;
   onOpenChange: (open: boolean) => void;
   onSaved: (task: TaskRecord) => void;
   onDeleted?: (taskId: number) => void;
@@ -62,11 +66,13 @@ type TaskDialogFormProps = {
 
 function TaskDialogForm({
   defaults,
+  boardRole,
   onOpenChange,
   onSaved,
   onDeleted,
 }: TaskDialogFormProps) {
   const editing = defaults?.task;
+  const readOnly = boardRole === "viewer";
   const [title, setTitle] = useState(editing?.title ?? "");
   const [description, setDescription] = useState(editing?.description ?? "");
   const [dueDate, setDueDate] = useState(
@@ -89,7 +95,7 @@ function TaskDialogForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || readOnly) return;
 
     setSaving(true);
     setError(null);
@@ -125,7 +131,7 @@ function TaskDialogForm({
   }
 
   async function handleDelete() {
-    if (!editing || !onDeleted) return;
+    if (!editing || !onDeleted || readOnly) return;
     if (!confirm(`Delete "${editing.title}"?`)) return;
     setSaving(true);
     try {
@@ -152,6 +158,7 @@ function TaskDialogForm({
           placeholder="Research user needs"
           required
           autoFocus
+          readOnly={readOnly}
         />
       </div>
 
@@ -167,6 +174,7 @@ function TaskDialogForm({
           }
           placeholder="Optional details…"
           rows={3}
+          readOnly={readOnly}
         />
       </div>
 
@@ -180,6 +188,7 @@ function TaskDialogForm({
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
+            readOnly={readOnly}
           />
         </div>
 
@@ -192,6 +201,7 @@ function TaskDialogForm({
             value={priority}
             onChange={(e) => setPriority(e.target.value as KanbanPriority)}
             className="w-full rounded border-2 border-border px-3 py-2 font-sans text-sm shadow-sm"
+            disabled={readOnly}
           >
             {KANBAN_PRIORITIES.map((p) => (
               <option key={p} value={p}>
@@ -212,6 +222,7 @@ function TaskDialogForm({
                 key={label}
                 type="button"
                 onClick={() => toggleLabel(label)}
+                disabled={readOnly}
                 className={cn(
                   "rounded border-2 border-border px-2 py-1 font-sans text-xs shadow-sm transition-transform",
                   LABEL_META[label].chipClass,
@@ -229,22 +240,33 @@ function TaskDialogForm({
       <div className="space-y-3 rounded border-2 border-border bg-muted/20 p-3">
         <label className="flex items-center justify-between gap-3">
           <span className="font-sans text-sm">Sync with Calendar</span>
-          <Switch checked={syncCalendar} onCheckedChange={setSyncCalendar} />
+          <Switch
+            checked={syncCalendar}
+            onCheckedChange={setSyncCalendar}
+            disabled={readOnly}
+          />
         </label>
         <label className="flex items-center justify-between gap-3">
           <span className="font-sans text-sm">Link with Notes</span>
-          <Switch checked={linkNotes} onCheckedChange={setLinkNotes} />
+          <Switch
+            checked={linkNotes}
+            onCheckedChange={setLinkNotes}
+            disabled={readOnly}
+          />
         </label>
       </div>
 
       {editing ? <TaskPulsePanel taskId={editing.id} /> : null}
+      {editing ? (
+        <TaskComments taskId={editing.id} boardRole={boardRole} />
+      ) : null}
 
       {error ? (
         <p className="font-sans text-sm text-red-600 dark:text-red-400">{error}</p>
       ) : null}
 
       <div className="flex items-center justify-between gap-2">
-        {editing && onDeleted ? (
+        {editing && onDeleted && !readOnly ? (
           <Button
             type="button"
             variant="outline"
@@ -264,11 +286,13 @@ function TaskDialogForm({
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </Button>
-          <Button type="submit" disabled={saving || !title.trim()}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
+          {!readOnly ? (
+            <Button type="submit" disabled={saving || !title.trim()}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          ) : null}
         </div>
       </div>
     </form>
@@ -279,10 +303,12 @@ export function TaskDialog({
   open,
   onOpenChange,
   defaults,
+  boardRole,
   onSaved,
   onDeleted,
 }: TaskDialogProps) {
   const editing = defaults?.task;
+  const readOnly = boardRole === "viewer";
   const formKey = editing
     ? `edit-${editing.id}`
     : `create-${defaults?.columnId ?? ""}`;
@@ -292,7 +318,11 @@ export function TaskDialog({
       <Dialog.Content size="lg" className="max-w-lg">
         <Dialog.Header asChild>
           <h2 className="font-head text-lg">
-            {editing ? "Task details" : "New task"}
+            {editing
+              ? readOnly
+                ? "View task"
+                : "Task details"
+              : "New task"}
           </h2>
         </Dialog.Header>
 
@@ -300,6 +330,7 @@ export function TaskDialog({
           <TaskDialogForm
             key={formKey}
             defaults={defaults}
+            boardRole={boardRole}
             onOpenChange={onOpenChange}
             onSaved={onSaved}
             onDeleted={onDeleted}

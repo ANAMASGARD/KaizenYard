@@ -18,6 +18,7 @@ type KanbanColumnProps = {
   column: ColumnRecord;
   tasks: TaskRecord[];
   pulseRiskByTaskId: Record<number, { atRisk: number; blocked: number }>;
+  readOnly?: boolean;
   canMoveLeft: boolean;
   canMoveRight: boolean;
   onAddTask: (columnId: number) => void;
@@ -33,6 +34,7 @@ export function KanbanColumn({
   column,
   tasks,
   pulseRiskByTaskId,
+  readOnly = false,
   canMoveLeft,
   canMoveRight,
   onAddTask,
@@ -70,17 +72,19 @@ export function KanbanColumn({
             <span className="font-sans text-xs opacity-80">({tasks.length})</span>
           </h3>
         </div>
-        <ColumnOptionsMenu
-          column={column}
-          taskCount={tasks.length}
-          canMoveLeft={canMoveLeft}
-          canMoveRight={canMoveRight}
-          onRename={onRename}
-          onChangeColor={onChangeColor}
-          onMoveLeft={onMoveLeft}
-          onMoveRight={onMoveRight}
-          onDelete={onDelete}
-        />
+        {!readOnly ? (
+          <ColumnOptionsMenu
+            column={column}
+            taskCount={tasks.length}
+            canMoveLeft={canMoveLeft}
+            canMoveRight={canMoveRight}
+            onRename={onRename}
+            onChangeColor={onChangeColor}
+            onMoveLeft={onMoveLeft}
+            onMoveRight={onMoveRight}
+            onDelete={onDelete}
+          />
+        ) : null}
       </div>
 
       <div
@@ -94,6 +98,7 @@ export function KanbanColumn({
               task={task}
               column={column}
               onEdit={onEditTask}
+              readOnly={readOnly}
               pulseRisk={pulseRiskByTaskId[task.id]}
             />
           ))}
@@ -105,17 +110,19 @@ export function KanbanColumn({
         ) : null}
       </div>
 
-      <div className="border-t-2 border-border p-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full text-sm"
-          onClick={() => onAddTask(column.id)}
-        >
-          <Plus className="size-4" />
-          Add task
-        </Button>
-      </div>
+      {!readOnly ? (
+        <div className="border-t-2 border-border p-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full text-sm"
+            onClick={() => onAddTask(column.id)}
+          >
+            <Plus className="size-4" />
+            Add task
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

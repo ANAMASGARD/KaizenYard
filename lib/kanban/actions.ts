@@ -4,10 +4,16 @@ import { auth } from "@clerk/nextjs/server";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
+  kanbanBoardCollaborators,
   kanbanBoards,
   kanbanColumns,
   kanbanTasks,
 } from "@/db";
+import {
+  requireBoardAccess,
+  requireBoardOwnership,
+} from "@/lib/kanban/access";
+import type { BoardRole } from "@/lib/kanban/room";
 import {
   createCalendarItem,
   deleteCalendarItem,
@@ -51,13 +57,17 @@ async function resolveActorId(options?: TaskMutationOptions): Promise<string> {
   return requireUserId();
 }
 
-function toBoardRecord(row: typeof kanbanBoards.$inferSelect): BoardRecord {
+function toBoardRecord(
+  row: typeof kanbanBoards.$inferSelect,
+  role: BoardRole,
+): BoardRecord {
   return {
     id: row.id,
     clerkId: row.clerkId,
     name: row.name,
     color: row.color as KanbanColor,
     sortOrder: row.sortOrder,
+    role,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -95,26 +105,42 @@ function toTaskRecord(row: typeof kanbanTasks.$inferSelect): TaskRecord {
   };
 }
 
-async function assertBoardOwnership(boardId: number, userId: string) {
-  const [board] = await db
-    .select()
-    .from(kanbanBoards)
-    .where(and(eq(kanbanBoards.id, boardId), eq(kanbanBoards.clerkId, userId)));
-  if (!board) {
-    throw new Error("Board not found");
-  }
-  return board;
-}
-
-async function assertColumnOwnership(columnId: number, userId: string) {
+async function requireColumnBoardAccess(
+  columnId: number,
+  clerkId: string,
+  minRole: "editor" | "viewer",
+) {
   const [column] = await db
     .select()
     .from(kanbanColumns)
-    .where(and(eq(kanbanColumns.id, columnId), eq(kanbanColumns.clerkId, userId)));
+    .where(eq(kanbanColumns.id, columnId))
+    .limit(1);
+
   if (!column) {
     throw new Error("Column not found");
   }
+
+  await requireBoardAccess(column.boardId, clerkId, minRole);
   return column;
+}
+
+async function requireTaskBoardAccess(
+  taskId: number,
+  clerkId: string,
+  minRole: "editor" | "viewer",
+) {
+  const [task] = await db
+    .select()
+    .from(kanbanTasks)
+    .where(eq(kanbanTasks.id, taskId))
+    .limit(1);
+
+  if (!task) {
+    throw new Error("Task not found");
+  }
+
+  await requireColumnBoardAccess(task.columnId, clerkId, minRole);
+  return task;
 }
 
 function dueDateToCalendarScheduledAt(dueDateIso: string): string {
@@ -174,12 +200,41 @@ async function deleteTaskCalendarItem(calendarItemId: number | null) {
 
 export async function listBoards(): Promise<BoardRecord[]> {
   const userId = await requireUserId();
-  const rows = await db
+
+  const ownedRows = await db
     .select()
     .from(kanbanBoards)
-    .where(eq(kanbanBoards.clerkId, userId))
-    .orderBy(asc(kanbanBoards.sortOrder), asc(kanbanBoards.id));
-  return rows.map(toBoardRecord);
+    .where(eq(kanbanBoards.clerkId, userId));
+
+  const sharedRows = await db
+    .select({
+      board: kanbanBoards,
+      role: kanbanBoardCollaborators.role,
+    })
+    .from(kanbanBoardCollaborators)
+    .innerJoin(kanbanBoards, eq(kanbanBoardCollaborators.boardId, kanbanBoards.id))
+    .where(
+      and(
+        eq(kanbanBoardCollaborators.clerkId, userId),
+        sql`${kanbanBoardCollaborators.acceptedAt} IS NOT NULL`,
+      ),
+    );
+
+  const byId = new Map<number, BoardRecord>();
+
+  for (const row of ownedRows) {
+    byId.set(row.id, toBoardRecord(row, "owner"));
+  }
+
+  for (const { board, role } of sharedRows) {
+    if (byId.has(board.id)) continue;
+    const sharedRole = role === "viewer" ? "viewer" : "editor";
+    byId.set(board.id, toBoardRecord(board, sharedRole));
+  }
+
+  return [...byId.values()].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.id - b.id,
+  );
 }
 
 export async function createBoard(input: CreateBoardInput): Promise<BoardData> {
@@ -225,10 +280,11 @@ export async function createBoard(input: CreateBoardInput): Promise<BoardData> {
     .returning();
 
   return {
-    board: toBoardRecord(board),
+    board: toBoardRecord(board, "owner"),
     columns: columnRows.map(toColumnRecord),
     tasks: [],
     pulseRiskByTaskId: {},
+    role: "owner",
   };
 }
 
@@ -237,7 +293,7 @@ export async function updateBoard(
   input: UpdateBoardInput,
 ): Promise<BoardRecord> {
   const userId = await requireUserId();
-  await assertBoardOwnership(boardId, userId);
+  await requireBoardOwnership(boardId, userId);
 
   if (input.color && !isKanbanColor(input.color)) {
     throw new Error("Invalid board color");
@@ -250,19 +306,19 @@ export async function updateBoard(
       ...(input.color !== undefined ? { color: input.color } : {}),
       updatedAt: sql`now()`,
     })
-    .where(and(eq(kanbanBoards.id, boardId), eq(kanbanBoards.clerkId, userId)))
+    .where(eq(kanbanBoards.id, boardId))
     .returning();
 
   if (!row) {
     throw new Error("Board not found");
   }
 
-  return toBoardRecord(row);
+  return toBoardRecord(row, "owner");
 }
 
 export async function deleteBoard(boardId: number): Promise<void> {
   const userId = await requireUserId();
-  await assertBoardOwnership(boardId, userId);
+  await requireBoardOwnership(boardId, userId);
 
   const columns = await db
     .select({ id: kanbanColumns.id })
@@ -281,14 +337,22 @@ export async function deleteBoard(boardId: number): Promise<void> {
     }
   }
 
-  await db
-    .delete(kanbanBoards)
-    .where(and(eq(kanbanBoards.id, boardId), eq(kanbanBoards.clerkId, userId)));
+  await db.delete(kanbanBoards).where(eq(kanbanBoards.id, boardId));
 }
 
 export async function listBoardData(boardId: number): Promise<BoardData> {
   const userId = await requireUserId();
-  const board = await assertBoardOwnership(boardId, userId);
+  const role = await requireBoardAccess(boardId, userId, "viewer");
+
+  const [board] = await db
+    .select()
+    .from(kanbanBoards)
+    .where(eq(kanbanBoards.id, boardId))
+    .limit(1);
+
+  if (!board) {
+    throw new Error("Board not found");
+  }
 
   const columns = await db
     .select()
@@ -322,10 +386,11 @@ export async function listBoardData(boardId: number): Promise<BoardData> {
   await evaluateDueDateAutomationsForBoard(boardId, taskRecords);
 
   return {
-    board: toBoardRecord(board),
+    board: toBoardRecord(board, role),
     columns: columns.map(toColumnRecord),
     tasks: taskRecords,
     pulseRiskByTaskId,
+    role,
   };
 }
 
@@ -333,7 +398,17 @@ export async function createColumn(
   input: CreateColumnInput,
 ): Promise<ColumnRecord> {
   const userId = await requireUserId();
-  await assertBoardOwnership(input.boardId, userId);
+  const [board] = await db
+    .select()
+    .from(kanbanBoards)
+    .where(eq(kanbanBoards.id, input.boardId))
+    .limit(1);
+
+  if (!board) {
+    throw new Error("Board not found");
+  }
+
+  await requireBoardAccess(input.boardId, userId, "editor");
 
   if (!input.name.trim()) {
     throw new Error("Column name is required");
@@ -359,7 +434,7 @@ export async function createColumn(
     .insert(kanbanColumns)
     .values({
       boardId: input.boardId,
-      clerkId: userId,
+      clerkId: board.clerkId,
       name: input.name.trim(),
       color: input.color,
       sortOrder: nextSort,
@@ -374,7 +449,7 @@ export async function updateColumn(
   input: UpdateColumnInput,
 ): Promise<ColumnRecord> {
   const userId = await requireUserId();
-  await assertColumnOwnership(columnId, userId);
+  await requireColumnBoardAccess(columnId, userId, "editor");
 
   if (input.color && !isKanbanColor(input.color)) {
     throw new Error("Invalid column color");
@@ -387,7 +462,7 @@ export async function updateColumn(
       ...(input.color !== undefined ? { color: input.color } : {}),
       updatedAt: sql`now()`,
     })
-    .where(and(eq(kanbanColumns.id, columnId), eq(kanbanColumns.clerkId, userId)))
+    .where(eq(kanbanColumns.id, columnId))
     .returning();
 
   if (!row) {
@@ -402,7 +477,7 @@ export async function reorderColumns(
   columnIds: number[],
 ): Promise<ColumnRecord[]> {
   const userId = await requireUserId();
-  await assertBoardOwnership(boardId, userId);
+  await requireBoardAccess(boardId, userId, "editor");
 
   const columns = await db
     .select()
@@ -423,7 +498,7 @@ export async function reorderColumns(
       db
         .update(kanbanColumns)
         .set({ sortOrder: index, updatedAt: sql`now()` })
-        .where(and(eq(kanbanColumns.id, id), eq(kanbanColumns.clerkId, userId))),
+        .where(eq(kanbanColumns.id, id)),
     ),
   );
 
@@ -438,7 +513,7 @@ export async function reorderColumns(
 
 export async function deleteColumn(columnId: number): Promise<void> {
   const userId = await requireUserId();
-  const column = await assertColumnOwnership(columnId, userId);
+  const column = await requireColumnBoardAccess(columnId, userId, "editor");
 
   const allColumns = await db
     .select()
@@ -480,7 +555,7 @@ export async function deleteColumn(columnId: number): Promise<void> {
         sortOrder: nextSort,
         updatedAt: sql`now()`,
       })
-      .where(and(eq(kanbanTasks.id, task.id), eq(kanbanTasks.clerkId, userId)));
+      .where(eq(kanbanTasks.id, task.id));
     nextSort += 1;
   }
 
@@ -489,14 +564,12 @@ export async function deleteColumn(columnId: number): Promise<void> {
   );
   await deleteAutomationsReferencingColumn(column.boardId, columnId);
 
-  await db
-    .delete(kanbanColumns)
-    .where(and(eq(kanbanColumns.id, columnId), eq(kanbanColumns.clerkId, userId)));
+  await db.delete(kanbanColumns).where(eq(kanbanColumns.id, columnId));
 }
 
 export async function createTask(input: CreateTaskInput): Promise<TaskRecord> {
   const userId = await requireUserId();
-  await assertColumnOwnership(input.columnId, userId);
+  const column = await requireColumnBoardAccess(input.columnId, userId, "editor");
 
   if (!input.title.trim()) {
     throw new Error("Title is required");
@@ -520,7 +593,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskRecord> {
     .insert(kanbanTasks)
     .values({
       columnId: input.columnId,
-      clerkId: userId,
+      clerkId: column.clerkId,
       title: input.title.trim(),
       description: input.description?.trim() || null,
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
@@ -548,7 +621,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskRecord> {
     const [updated] = await db
       .update(kanbanTasks)
       .set({ calendarItemId, updatedAt: sql`now()` })
-      .where(and(eq(kanbanTasks.id, row.id), eq(kanbanTasks.clerkId, userId)))
+      .where(eq(kanbanTasks.id, row.id))
       .returning();
     const record = toTaskRecord(updated);
     const { runAutomationsForTask } = await import(
@@ -579,17 +652,33 @@ export async function updateTask(
 ): Promise<TaskRecord> {
   const userId = await resolveActorId(options);
 
-  const [existing] = await db
-    .select()
-    .from(kanbanTasks)
-    .where(and(eq(kanbanTasks.id, taskId), eq(kanbanTasks.clerkId, userId)));
+  const existing = options?.actingAsOwnerId
+    ? (
+        await db
+          .select()
+          .from(kanbanTasks)
+          .where(eq(kanbanTasks.id, taskId))
+          .limit(1)
+      )[0]
+    : await requireTaskBoardAccess(taskId, userId, "editor");
 
   if (!existing) {
     throw new Error("Task not found");
   }
 
   if (input.columnId !== undefined) {
-    await assertColumnOwnership(input.columnId, userId);
+    if (options?.actingAsOwnerId) {
+      const [targetColumn] = await db
+        .select()
+        .from(kanbanColumns)
+        .where(eq(kanbanColumns.id, input.columnId))
+        .limit(1);
+      if (!targetColumn) {
+        throw new Error("Column not found");
+      }
+    } else {
+      await requireColumnBoardAccess(input.columnId, userId, "editor");
+    }
   }
   if (input.priority && !isKanbanPriority(input.priority)) {
     throw new Error("Invalid priority");
@@ -623,7 +712,7 @@ export async function updateTask(
       ...(input.columnId !== undefined ? { columnId: input.columnId } : {}),
       updatedAt: sql`now()`,
     })
-    .where(and(eq(kanbanTasks.id, taskId), eq(kanbanTasks.clerkId, userId)))
+    .where(eq(kanbanTasks.id, taskId))
     .returning();
 
   if (!row) {
@@ -637,7 +726,7 @@ export async function updateTask(
     const [synced] = await db
       .update(kanbanTasks)
       .set({ calendarItemId, updatedAt: sql`now()` })
-      .where(and(eq(kanbanTasks.id, taskId), eq(kanbanTasks.clerkId, userId)))
+      .where(eq(kanbanTasks.id, taskId))
       .returning();
     const result = toTaskRecord(synced);
     if (!options?.skipAutomation) {
@@ -665,21 +754,11 @@ export async function updateTask(
 
 export async function deleteTask(taskId: number): Promise<void> {
   const userId = await requireUserId();
-
-  const [existing] = await db
-    .select()
-    .from(kanbanTasks)
-    .where(and(eq(kanbanTasks.id, taskId), eq(kanbanTasks.clerkId, userId)));
-
-  if (!existing) {
-    throw new Error("Task not found");
-  }
+  const existing = await requireTaskBoardAccess(taskId, userId, "editor");
 
   await deleteTaskCalendarItem(existing.calendarItemId);
 
-  await db
-    .delete(kanbanTasks)
-    .where(and(eq(kanbanTasks.id, taskId), eq(kanbanTasks.clerkId, userId)));
+  await db.delete(kanbanTasks).where(eq(kanbanTasks.id, taskId));
 }
 
 export async function moveTask(
@@ -689,12 +768,29 @@ export async function moveTask(
   options?: TaskMutationOptions,
 ): Promise<TaskRecord> {
   const userId = await resolveActorId(options);
-  await assertColumnOwnership(columnId, userId);
 
-  const [existing] = await db
-    .select()
-    .from(kanbanTasks)
-    .where(and(eq(kanbanTasks.id, taskId), eq(kanbanTasks.clerkId, userId)));
+  if (options?.actingAsOwnerId) {
+    const [targetColumn] = await db
+      .select()
+      .from(kanbanColumns)
+      .where(eq(kanbanColumns.id, columnId))
+      .limit(1);
+    if (!targetColumn) {
+      throw new Error("Column not found");
+    }
+  } else {
+    await requireColumnBoardAccess(columnId, userId, "editor");
+  }
+
+  const existing = options?.actingAsOwnerId
+    ? (
+        await db
+          .select()
+          .from(kanbanTasks)
+          .where(eq(kanbanTasks.id, taskId))
+          .limit(1)
+      )[0]
+    : await requireTaskBoardAccess(taskId, userId, "editor");
 
   if (!existing) {
     throw new Error("Task not found");
@@ -707,7 +803,7 @@ export async function moveTask(
       sortOrder,
       updatedAt: sql`now()`,
     })
-    .where(and(eq(kanbanTasks.id, taskId), eq(kanbanTasks.clerkId, userId)))
+    .where(eq(kanbanTasks.id, taskId))
     .returning();
 
   const record = toTaskRecord(row);
@@ -730,7 +826,7 @@ export async function reorderTasks(
   taskIds: number[],
 ): Promise<TaskRecord[]> {
   const userId = await requireUserId();
-  await assertColumnOwnership(columnId, userId);
+  await requireColumnBoardAccess(columnId, userId, "editor");
 
   const tasks = await db
     .select()
@@ -751,7 +847,7 @@ export async function reorderTasks(
       db
         .update(kanbanTasks)
         .set({ sortOrder: index, updatedAt: sql`now()` })
-        .where(and(eq(kanbanTasks.id, id), eq(kanbanTasks.clerkId, userId))),
+        .where(eq(kanbanTasks.id, id)),
     ),
   );
 
@@ -771,12 +867,29 @@ export async function moveTaskWithReorder(
   options?: TaskMutationOptions,
 ): Promise<TaskRecord[]> {
   const userId = await resolveActorId(options);
-  await assertColumnOwnership(targetColumnId, userId);
 
-  const [existing] = await db
-    .select()
-    .from(kanbanTasks)
-    .where(and(eq(kanbanTasks.id, taskId), eq(kanbanTasks.clerkId, userId)));
+  if (options?.actingAsOwnerId) {
+    const [targetColumn] = await db
+      .select()
+      .from(kanbanColumns)
+      .where(eq(kanbanColumns.id, targetColumnId))
+      .limit(1);
+    if (!targetColumn) {
+      throw new Error("Column not found");
+    }
+  } else {
+    await requireColumnBoardAccess(targetColumnId, userId, "editor");
+  }
+
+  const existing = options?.actingAsOwnerId
+    ? (
+        await db
+          .select()
+          .from(kanbanTasks)
+          .where(eq(kanbanTasks.id, taskId))
+          .limit(1)
+      )[0]
+    : await requireTaskBoardAccess(taskId, userId, "editor");
 
   if (!existing) {
     throw new Error("Task not found");
@@ -793,7 +906,7 @@ export async function moveTaskWithReorder(
           sortOrder: index,
           updatedAt: sql`now()`,
         })
-        .where(and(eq(kanbanTasks.id, id), eq(kanbanTasks.clerkId, userId))),
+        .where(eq(kanbanTasks.id, id)),
     ),
   );
 
@@ -809,7 +922,7 @@ export async function moveTaskWithReorder(
         db
           .update(kanbanTasks)
           .set({ sortOrder: index, updatedAt: sql`now()` })
-          .where(and(eq(kanbanTasks.id, task.id), eq(kanbanTasks.clerkId, userId))),
+          .where(eq(kanbanTasks.id, task.id)),
       ),
     );
   }

@@ -124,8 +124,9 @@ app/(app)/calendar/pulse/[token]/page.tsx
 - `kanban_tasks` — title, description, due date, priority, labels, calendar sync (`calendarItemId`), `linkNotes` flag, sort order
 - `kanban_task_pulses` + `kanban_task_pulse_votes` — anonymous task risk check-ins (HMAC voter tokens, same `CALENDAR_PULSE_SECRET` as meeting pulse)
 - `kanban_automations` — per-board Butler-style trigger→action rules (jsonb configs)
+- `kanban_board_collaborators` — board sharing by email (editor/viewer roles, pending until invitee signs up)
 
-Migrations: `20260701155506_icy_timeslip` (core kanban), `20260701162208_warm_polaris` (pulse + automations)
+Migrations: `20260701155506_icy_timeslip` (core kanban), `20260701162208_warm_polaris` (pulse + automations), `20260701165253_clean_famine` (board collaborators)
 
 ### Core Kanban features
 
@@ -153,17 +154,39 @@ Migrations: `20260701155506_icy_timeslip` (core kanban), `20260701162208_warm_po
 - UI: ⚡ Automations button in `kanban-page.tsx` → `automation-panel.tsx` + `automation-rule-dialog.tsx`
 - `deleteColumn` cleans rules referencing deleted column IDs
 
+### Liveblocks collaboration (Chapter 4.1 / Kanban multiplayer — done)
+
+- **Stack:** `@liveblocks/client`, `@liveblocks/react`, `@liveblocks/node`
+- **Env:** `LIVEBLOCKS_SECRET_KEY` (`sk_live_...` / `sk_dev_...`) — server-only; **no public key** (auth-endpoint mode, not `publicApiKey`)
+- **Room ID:** `kanban:board:{boardId}` per active board (`lib/kanban/room.ts`)
+- **Auth:** `POST /api/liveblocks-auth` — Clerk session + `getBoardRole()` → `READ_ACCESS` (viewer) or `FULL_ACCESS` (owner/editor); protected in `proxy.ts`
+- **Postgres = source of truth** for boards/columns/tasks; Liveblocks for presence, comments, and `board-changed` broadcast sync (not Storage)
+- **Roles:** `owner` (board `clerkId`), `editor` (mutate), `viewer` (read-only UI + comments read)
+- **Invites:** owner invites by email via collaboration panel; pending rows activate on sign-up (`resolvePendingInvites` in `lib/sync-user.ts`)
+- **UI:** Collaborate dialog, live avatar stack, per-task comment threads (custom RetroUI, not `@liveblocks/react-ui`), comment count on cards, shared-board icon in sidebar
+- **Realtime sync:** `useBoardRealtimeSync` — debounced refetch on remote `board-changed` events after local mutations call `notifyBoardChanged()`
+- **Client wiring:** `LiveblocksProvider authEndpoint` on `KanbanPage`; `RoomProvider` + `ClientSideSuspense` per active board
+- **Access layer:** `lib/kanban/access.ts` (server DB checks); `lib/kanban/room.ts` (client-safe room IDs + role types — do not import `access.ts` from client components)
+
 ### Files
 
 ```
 lib/kanban/
   actions.ts, types.ts, colors.ts, labels.ts
+  access.ts, room.ts, collaboration-actions.ts, use-board-realtime-sync.ts
   pulse-actions.ts, pulse-types.ts
   automation-actions.ts, automation-types.ts, automation-labels.ts
+
+lib/liveblocks/
+  config.ts, user-color.ts, comment-utils.ts
+
+app/api/liveblocks-auth/route.ts
 
 components/kanban/
   kanban-page.tsx, kanban-board.tsx, kanban-column.tsx, kanban-card.tsx
   board-sidebar.tsx, board-dialog.tsx, task-dialog.tsx, task-pulse-panel.tsx
+  active-collaborators.tsx, collaboration-panel.tsx, task-comments.tsx
+  task-thread-counts-context.tsx
   automation-panel.tsx, automation-rule-dialog.tsx
   add-column-popover.tsx, column-options-menu.tsx, color-swatch-picker.tsx
 
@@ -241,8 +264,9 @@ db/
 lib/
   mask-email.ts           partial email masking for sidebar
   calendar/               categories, date-utils, server actions, types, pulse-actions
-  kanban/                 boards/columns/tasks, pulse, automations, server actions
-  sync-user.ts            Clerk → users upsert
+  kanban/                 boards/columns/tasks, pulse, automations, collaboration, Liveblocks sync
+  liveblocks/             types, user colors, comment body helpers
+  sync-user.ts            Clerk → users upsert + pending board invite resolution
   format-db-error.ts      readable DB errors
   with-db-retry.ts        transient connection retry
   use-is-client.ts        hydration-safe client flag
@@ -269,4 +293,4 @@ scripts/
 - Real global search
 - Attestation feature implementation (beyond anonymous pulse voting pattern)
 - Clerk Organizations / workspace switcher (when enabled in Clerk dashboard)
-- Multi-user boards / assignees
+- Liveblocks reuse on other features (calendar, notes, whiteboard, AI assistant rooms — room ID pattern documented in plan)

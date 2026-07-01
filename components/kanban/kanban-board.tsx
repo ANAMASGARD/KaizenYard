@@ -1,12 +1,15 @@
 "use client";
 
+import type { BoardRole } from "@/lib/kanban/room";
 import type { KanbanColor } from "@/lib/kanban/colors";
 import type { ColumnRecord, TaskRecord } from "@/lib/kanban/types";
 import { AddColumnPopover } from "@/components/kanban/add-column-popover";
 import { KanbanColumn } from "@/components/kanban/kanban-column";
+import { TaskThreadCountsProvider } from "@/components/kanban/task-thread-counts-context";
 
 type KanbanBoardProps = {
   boardId: number;
+  boardRole: BoardRole;
   columns: ColumnRecord[];
   tasks: TaskRecord[];
   pulseRiskByTaskId: Record<number, { atRisk: number; blocked: number }>;
@@ -22,6 +25,7 @@ type KanbanBoardProps = {
 
 export function KanbanBoard({
   boardId,
+  boardRole,
   columns,
   tasks,
   pulseRiskByTaskId,
@@ -34,48 +38,54 @@ export function KanbanBoard({
   onMoveColumnRight,
   onDeleteColumn,
 }: KanbanBoardProps) {
+  const readOnly = boardRole === "viewer";
   const sortedColumns = [...columns].sort(
     (a, b) => a.sortOrder - b.sortOrder || a.id - b.id,
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="font-head text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-          Board columns
-        </p>
-        <AddColumnPopover
-          boardId={boardId}
-          disabled={columns.length >= 5}
-          onCreated={onColumnCreated}
-        />
-      </div>
-
-      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
-        {sortedColumns.map((column, index) => {
-          const columnTasks = tasks
-            .filter((t) => t.columnId === column.id)
-            .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
-
-          return (
-            <KanbanColumn
-              key={column.id}
-              column={column}
-              tasks={columnTasks}
-              pulseRiskByTaskId={pulseRiskByTaskId}
-              canMoveLeft={index > 0}
-              canMoveRight={index < sortedColumns.length - 1}
-              onAddTask={onAddTask}
-              onEditTask={onEditTask}
-              onRename={(name) => onRenameColumn(column.id, name)}
-              onChangeColor={(color) => onChangeColumnColor(column.id, color)}
-              onMoveLeft={() => onMoveColumnLeft(column.id)}
-              onMoveRight={() => onMoveColumnRight(column.id)}
-              onDelete={() => onDeleteColumn(column.id)}
+    <TaskThreadCountsProvider>
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-head text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            Board columns
+          </p>
+          {!readOnly ? (
+            <AddColumnPopover
+              boardId={boardId}
+              disabled={columns.length >= 5}
+              onCreated={onColumnCreated}
             />
-          );
-        })}
+          ) : null}
+        </div>
+
+        <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
+          {sortedColumns.map((column, index) => {
+            const columnTasks = tasks
+              .filter((t) => t.columnId === column.id)
+              .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+
+            return (
+              <KanbanColumn
+                key={column.id}
+                column={column}
+                tasks={columnTasks}
+                pulseRiskByTaskId={pulseRiskByTaskId}
+                readOnly={readOnly}
+                canMoveLeft={index > 0}
+                canMoveRight={index < sortedColumns.length - 1}
+                onAddTask={onAddTask}
+                onEditTask={onEditTask}
+                onRename={(name) => onRenameColumn(column.id, name)}
+                onChangeColor={(color) => onChangeColumnColor(column.id, color)}
+                onMoveLeft={() => onMoveColumnLeft(column.id)}
+                onMoveRight={() => onMoveColumnRight(column.id)}
+                onDelete={() => onDeleteColumn(column.id)}
+              />
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </TaskThreadCountsProvider>
   );
 }

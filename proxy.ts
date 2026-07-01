@@ -10,6 +10,7 @@ const isProtectedRoute = createRouteMatcher([
   "/pages(.*)",
   "/templates(.*)",
   "/settings(.*)",
+  "/api/liveblocks-auth(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
