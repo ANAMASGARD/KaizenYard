@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "drizzle-best-practices": {
+      "source": "honra-io/drizzle-best-practices",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "a1a3b7de25301018058a1c969d5a79b4270dc29f3b9e81783e40eb95c7de9591"
+    }
+  }
+}
