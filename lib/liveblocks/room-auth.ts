@@ -2,6 +2,8 @@ import { getBoardRole } from "@/lib/kanban/access";
 import { parseKanbanBoardRoomId } from "@/lib/kanban/room";
 import { getNoteRole } from "@/lib/notes/access";
 import { parseNotePageRoomId } from "@/lib/notes/room";
+import { getPageRole } from "@/lib/pages/access";
+import { parsePageRoomId } from "@/lib/pages/room";
 import { getWhiteboardRole } from "@/lib/whiteboard/access";
 import { parseWhiteboardPageRoomId } from "@/lib/whiteboard/room";
 
@@ -20,6 +22,10 @@ const ROOM_HANDLERS: RoomAuthHandler[] = [
   {
     parse: parseNotePageRoomId,
     getRole: getNoteRole,
+  },
+  {
+    parse: parsePageRoomId,
+    getRole: getPageRole,
   },
   {
     parse: parseWhiteboardPageRoomId,

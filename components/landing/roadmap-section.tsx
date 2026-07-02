@@ -4,13 +4,13 @@ import { Text } from "@/components/retroui/Text";
 const ROADMAP = [
   { num: "01", title: "Project setup", status: "done" },
   { num: "02", title: "DB + auth", status: "done" },
-  { num: "03", title: "Dashboard layout", status: "next" },
+  { num: "03", title: "Dashboard layout", status: "done" },
   { num: "04", title: "Calendar", status: "done" },
-  { num: "05", title: "Kanban board", status: "planned" },
-  { num: "06", title: "Notes", status: "planned" },
+  { num: "05", title: "Kanban board", status: "done" },
+  { num: "06", title: "Notes", status: "done" },
   { num: "07", title: "Whiteboard", status: "done" },
-  { num: "08", title: "Spaces & pages", status: "planned" },
-  { num: "09", title: "Attestation", status: "planned" },
+  { num: "08", title: "Spaces & pages", status: "done" },
+  { num: "09", title: "Attestation", status: "next" },
   { num: "10", title: "AI assistant", status: "planned" },
 ] as const;
 

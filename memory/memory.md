@@ -4,9 +4,53 @@ Last updated: 2026-07-02
 
 ## Product direction
 
-- **Kaizenyard** = privacy-first productivity app
-- Flagship feature: **anonymous attestation** — feedback provably from a verified group member, without revealing identity
+- **Kaizenyard** = privacy-first **Web3 productivity app** on **Stellar**
+- Flagship roadmap feature: **anonymous attestation** — feedback provably from a verified group member, without revealing identity
+- **Shipped Web3 feature:** **ZK Secure Vaults** in Pages & Spaces — Groth16 (bls12381) unlock proofs + Soroban `vault_verifier` on testnet via **Freighter** and **`@stellar/stellar-sdk`**
 - Planned roadmap chapters: setup → auth → dashboard → calendar → kanban → notes → whiteboard → spaces → attestation → AI assistant
+- **Chapters 4–8 implemented** (calendar, kanban, notes, whiteboard, pages/spaces + vaults); landing roadmap grid may lag
+
+## Agent skills (`.agents/skills/`)
+
+Repo-local Stellar/Web3 + DB skills for coding agents. **Read before changing that domain.**
+
+| Skill | Path | Scope |
+|-------|------|--------|
+| dapp | `.agents/skills/dapp/SKILL.md` | `@stellar/stellar-sdk`, Freighter, tx simulate/sign/submit, Next.js dApp patterns |
+| smart-contracts | `.agents/skills/smart-contracts/` | Soroban Rust, build/deploy, development/testing/security companions |
+| zk-proofs | `.agents/skills/zk-proofs/SKILL.md` | Groth16, Circom/snarkjs, BLS12-381 CAP-0059, verifier contracts |
+| assets | `.agents/skills/assets/SKILL.md` | Classic assets, trustlines, SAC |
+| data | `.agents/skills/data/SKILL.md` | Stellar RPC, Horizon, chain reads |
+| agentic-payments | `.agents/skills/agentic-payments/SKILL.md` | x402, MPP (future) |
+| standards | `.agents/skills/standards/SKILL.md` | SEPs, CAPs, ecosystem |
+| drizzle-best-practices | `.agents/skills/drizzle-best-practices/SKILL.md` | Drizzle v1 RC + Postgres |
+
+Also documented in root **`AGENTS.md`** (product + layout + skills routing table).
+
+## Web3 / Stellar (Chapter 8 vaults)
+
+### Stack
+
+- **`@stellar/stellar-sdk`** — RPC, contract invoke XDR, simulate/submit (`lib/stellar/contract.ts`)
+- **`@stellar/freighter-api`** — wallet (`hooks/use-freighter.ts`)
+- **`snarkjs`** — browser prover (`lib/vault/prover.ts`)
+- **Soroban:** `contracts/vault_verifier/` (`register_vault`, `verify_unlock`)
+- **Circom:** `circuits/vault_unlock/vault_unlock.circom` (compile `-p bls12381`)
+- **Build script:** `scripts/build-vault-zk.sh` → `public/zk/` (wasm + zkey, not always committed)
+
+### Env
+
+`NEXT_PUBLIC_STELLAR_NETWORK`, `NEXT_PUBLIC_SOROBAN_RPC_URL`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID`
+
+### Hackathon
+
+README **Stellar Hacks: Real-World ZK** section — architecture diagram, deploy steps, 2–3 min demo script.
+
+### Gaps (judges / production)
+
+- Contract deploy to testnet + env contract ID may be unset
+- Full Groth16 pairing verify in contract (v1 is policy-layer + commitment/nullifier check)
+- ZK artifacts optional until `build-vault-zk.sh` run
 
 ## What was built (landing + auth)
 
@@ -136,6 +180,7 @@ Migrations: `20260701155506_icy_timeslip` (core kanban), `20260701162208_warm_po
 - Drag-and-drop within and across columns (`@dnd-kit`)
 - Calendar sync — tasks with `syncCalendar` create/update/delete linked `calendar_items` (category `"tasks"`)
 - Mobile board drawer; neo-brutalist RetroUI throughout
+- **Desktop collapsible “My boards” sidebar** — `PanelLeftClose` in sidebar header; slim `PanelLeft` rail + in-panel reopen button when collapsed; preference in `localStorage` key `kaizenyard-kanban-sidebar-open` via `usePersistedSidebarOpen`
 
 ### Anonymous Task Risk Pulse (differentiator)
 
@@ -221,7 +266,16 @@ Migration: `20260701171518_bright_blue_shield`
 - **Multilingual STT:** AssemblyAI streaming via `Speak to Note` — language picker (Auto = `universal-streaming-multilingual` + `languageDetection`; pinned = `u3-rt-pro` + `prompt`); `formatTurns: true`; shared prefs in `speech-languages.ts`
 - **Browser TTS (Read aloud):** Web Speech API via `useWebSpeechTts` — read selection (bubble) or full note (header); Chromium + Firefox desktop target; chunking, voice warmup, `wait-for-speech-voices.ts`; viewers get `note-selection-menu.tsx`; editors also get read-aloud in bubble menu; STT start cancels TTS
 - Mobile notes drawer; neo-brutalist RetroUI throughout
+- **Desktop collapsible notes sidebar** — same pattern as kanban/whiteboard; key `kaizenyard-notes-sidebar-open`
+- **Compact editor header** — two-row toolbar: title + actions (collaborators, Read, Share, Pin, menu) on row 1; inline metadata (`Saved · N words · last edited`) + Dictate/language on row 2; uniform `h-8` toolbar buttons (no hover shadow shift)
 - Role gating via `getNoteCapabilities()` — viewers read-only + read-aloud; editors dictate + edit; owners manage trash/invites
+
+### Notes STT hardening (AssemblyAI)
+
+- `use-assemblyai-streaming.ts` — `await cleanup()` before each new session; `maxConnectionRetries: 0`; `connectTimeout: 10_000`; `close()` on failed connect; `startingRef` mutex + `isConnecting` state
+- User-facing errors for concurrent session limits and connection timeouts (no SDK retry spam)
+- `speak-to-note.tsx` — disabled button + Kaizen dots while connecting
+- **Tiptap fix:** `StarterKit.configure({ undoRedo: false, link: false, underline: false })` — avoids duplicate `link`/`underline` warnings (standalone extensions still registered)
 
 ### Liveblocks Yjs co-editing
 
@@ -240,7 +294,7 @@ Migration: `20260701171518_bright_blue_shield`
 - **`lib/notes/mappers.ts`** — `noteRecordToListItem` / `noteRowToListItem` (no duplicated mapping)
 - **`lib/notes/permissions.ts`** — `getNoteCapabilities(role)` for UI gating
 - **`lib/notes/persistence.ts`** — documents Yjs body vs Postgres title/metadata contract
-- **`lib/liveblocks/room-auth.ts`** — room registry for `/api/liveblocks-auth` (kanban + notes handlers)
+- **`lib/liveblocks/room-auth.ts`** — room registry for `/api/liveblocks-auth` (kanban + notes + whiteboard handlers)
 - **`lib/notes/slash-command-types.ts`** — slash command types in lib (not UI layer)
 - Share panel: any collaborator with viewer+ can list members; only owner can invite/remove
 - Removed dead Undo/Redo toolbar buttons (StarterKit `undoRedo: false`)
@@ -273,6 +327,11 @@ components/notes/
   slash-command-list.tsx, speak-to-note.tsx, collaboration-panel.tsx
   trash-panel.tsx, color-swatch-picker.tsx, active-collaborators.tsx
 
+components/whiteboard/     (see Whiteboard section above)
+
+components/loading/
+  kaizen-loading.tsx
+
 app/(app)/notes/page.tsx
 app/api/assemblyai/token/route.ts
 app/api/notes/ai-refine/route.ts
@@ -297,37 +356,69 @@ Migration: `20260702044645_fine_piledriver`
 ### Core Whiteboard features
 
 - Two-pane layout: whiteboard sidebar + Excalidraw canvas (neo-brutalist RetroUI chrome)
-- Sidebar: search, new board, pin, color dot, context menu (rename/duplicate/delete)
-- Excalidraw: shapes, draw, text, eraser, image upload; sticky-note shortcut button
+- **Maximized canvas** — page uses negative margins (`-m-4 sm:-m-6 lg:-m-8`) + `h-full min-h-0 overflow-hidden` so Excalidraw fills dashboard main
+- Sidebar: search, filter (all/mine/shared), new board, pin, color dot, context menu (rename/duplicate/delete)
+- **Desktop collapsible sidebar** — `PanelLeftClose` in “Your Whiteboards” header; slim reopen rail + floating `PanelLeft` in canvas header when collapsed; key `kaizenyard-whiteboard-sidebar-open` via `lib/whiteboard/use-desktop-sidebar-open.ts` (wraps shared hook)
+- Excalidraw: shapes, draw, text, eraser, image upload; **sticky-note toolbar button** (`lib/whiteboard/sticky-note.ts` — `convertToExcalidrawElements`, viewport-center placement)
+- **Compact header** — breadcrumb + title + star + actions in toolbar row; `TOOLBAR_BTN` class for aligned `h-8` controls
+- **Canvas footer** — Preview (zen mode) + Fullscreen (`use-fullscreen.ts`, `zenModeEnabled` on Excalidraw)
 - AI Diagram dialog — flowchart, mind map, system architecture, user journey, process via `/api/whiteboard/ai-generate` + OpenRouter `qwen/qwen3.5-flash-02-23`
 - PNG export via dynamic `exportToBlob`
 - Mobile sidebar drawer; role gating via `getWhiteboardCapabilities()` — viewers read-only + export
+- **Liveblocks badge hidden** — `#liveblocks-badge { display: none }` in `whiteboard-excalidraw.css`
+- **Client-only load** — `whiteboard-page-loader.tsx` dynamic import `ssr: false`
+
+### Excalidraw mount safety
+
+- `lib/whiteboard/excalidraw-mount.ts` — `whenExcalidrawReady()` / `safeUpdateScene()` gate `updateScene` until `getAppState().isLoading === false` (fixes “setState on unmounted _App”)
+- `lib/whiteboard/scene.ts` — sanitizes `appState` before persist/restore (e.g. `collaborators` must be object, not array)
 
 ### Liveblocks Yjs co-editing
 
 - Room ID: `whiteboard:page:{whiteboardId}` per active board
 - `@liveblocks/yjs` + `use-excalidraw-yjs` (Y.Map scene keys: elements, appState, files)
 - Postgres debounced snapshots (~800ms); Yjs seeded from DB when room empty after provider sync
-- Email sharing like Notes/Kanban: collaboration panel, editor/viewer roles, pending invite resolution in `lib/sync-user.ts`
+- Email sharing like Notes/Kanban: collaboration panel, editor/viewer roles, pending invite resolution in `lib/sync-user.ts` (`resolvePendingWhiteboardInvites`)
 - Pointer presence mapped to Excalidraw collaborators map
+- `lib/liveblocks/room-auth.ts` — whiteboard handler registered alongside kanban + notes
 
 ### Files
 
 ```
 lib/whiteboard/
   actions.ts, types.ts, room.ts, access.ts, collaboration-actions.ts
-  mappers.ts, permissions.ts, persistence.ts, scene.ts
+  mappers.ts, permissions.ts, persistence.ts, scene.ts, excalidraw-mount.ts
   use-whiteboard-list.ts, use-whiteboard-autosave.ts, use-excalidraw-yjs.ts
+  use-desktop-sidebar-open.ts, use-fullscreen.ts
   ai-diagram-prompts.ts, sticky-note.ts
 
 components/whiteboard/
   whiteboard-page-loader.tsx, whiteboard-page.tsx, whiteboard-sidebar.tsx
   whiteboard-list-item.tsx, whiteboard-header.tsx, whiteboard-canvas.tsx
+  whiteboard-canvas-footer.tsx, whiteboard-excalidraw.css
   excalidraw-client.tsx, ai-diagram-dialog.tsx, collaboration-panel.tsx
 
 app/(app)/whiteboard/page.tsx
 app/api/whiteboard/ai-generate/route.ts
 ```
+
+## Shared UX patterns (2026-07-02)
+
+### Kaizen loading (three yellow dots)
+
+- **`components/loading/kaizen-loading.tsx`** — `KaizenLoadingDots`, `KaizenLoadingScreen`, `KaizenLoadingInline`
+- Neo-brutalist yellow squares (`bg-primary`, `border-2`) with staggered wave animation (`kaizen-dot-wave` in `globals.css`)
+- Used across: notes/kanban/whiteboard/calendar page loads, Liveblocks `ClientSideSuspense` fallbacks, collaboration panel, trash, automations, pulse vote pages, STT connecting, AI diagram generate, AI refine bubble
+
+### Persisted feature sidebars
+
+- **`lib/use-persisted-sidebar-open.ts`** — generic `localStorage` open/close for feature sidebars (not dashboard app sidebar)
+- Keys: `kaizenyard-notes-sidebar-open`, `kaizenyard-kanban-sidebar-open`, `kaizenyard-whiteboard-sidebar-open`
+- Collapsed rail buttons use `shadow-none` (matches `sidebar-rail.ts` — no clip/overflow)
+
+### Active collaborators compact mode
+
+- `components/kanban/active-collaborators.tsx` — optional `compact` prop (`size-7` avatars, tighter Live badge); used in notes header
 
 ## Dark mode (full-site — done)
 
@@ -381,6 +472,9 @@ components/theme/
 
 components/clerk-provider-themed.tsx  Clerk + shadcn appearance
 
+components/loading/
+  kaizen-loading.tsx      three-dot yellow loader (screen / inline / dots only)
+
 components/brand/
   logo.tsx
 
@@ -394,8 +488,13 @@ lib/
   calendar/               categories, date-utils, server actions, types, pulse-actions
   kanban/                 boards/columns/tasks, pulse, automations, collaboration, Liveblocks sync
   notes/                  CRUD, Yjs co-edit, OpenRouter AI refine, multilingual STT, browser TTS
+  whiteboard/             Excalidraw, Yjs sync, AI diagrams, sticky notes, mount safety
   liveblocks/             types, user colors, comment body helpers, room-auth registry
-  sync-user.ts            Clerk → users upsert + pending board/note invite resolution
+  use-persisted-sidebar-open.ts  localStorage sidebar open state (notes/kanban/whiteboard)
+  sync-user.ts            Clerk → users upsert + pending board/note/whiteboard/space invite resolution
+  pages/                  spaces, pages, files, vault session, Stellar contract helpers
+  stellar/                Stellar SDK config + Soroban invoke helpers
+  vault/                  ZK commitment, snarkjs prover, unlock session
   format-db-error.ts      readable DB errors
   with-db-retry.ts        transient connection retry
   use-is-client.ts        hydration-safe client flag
@@ -415,12 +514,67 @@ scripts/
 - Sidebar: **do not show full user email** — use `maskEmail()` in compact UI
 - Neo-brutalism everywhere — use semantic tokens (`border-border`, `bg-background`) not hardcoded `border-black`
 - Dark mode: top-right toggle, instant CSS-var switch, no full-page transition lag
+- Feature sidebars (notes/kanban/whiteboard): collapsible on desktop to maximize editor/canvas area; preference persisted per feature
+
+## Pages & Spaces (Chapter 8 + ZK Secure Vaults + folder UX — done)
+
+### Data
+
+- `spaces` — name, description, color, `isVault`, `vaultCommitment`, `vaultSalt`, favorites, archive, soft-delete
+- `pages` — per-space Tiptap pages with templates, favorites, `lastEditedByClerkId`, author initials in lists
+- `space_collaborators` — email invites per space (editor/viewer); vault spaces not shareable in v1
+- `space_files` — file attachments per space (name, mimeType, sizeBytes, dataBase64, 5 MB upload limit v1)
+
+Migrations: `20260702072004_sturdy_randall_flagg` (spaces/pages), `20260702074035_unique_maestro` (space_files)
+
+### Folder UX (neo-brutalism + RetroUI)
+
+- **All Spaces** (`/pages`) — “Organize every working document by space.”, filter tabs, search, grid/list, New Space + New Page, space cards with folder icon, owner avatar initials, page/file counts, star + ⋯ menu
+- **Space detail** — ← All Spaces breadcrumb, folder header, unified **pages + files** table (Page Name + By XX, Type, Updated, star + ⋯)
+- **Context menus** — Rename, Move (space picker), Duplicate, Favorite, Share (copy link), Export (JSON), Archive, Delete; files also Upload/Download
+- **Page editor** — Tiptap + Liveblocks Yjs, templates, autosave, STT/TTS from Notes stack
+
+### Secure Vaults (Web3)
+
+- ZK-gated spaces; locked UI (`••••••` titles); Freighter + Soroban unlock
+- Client: `lib/vault/` (commitment, prover, session), `lib/stellar/` (SDK contract calls)
+
+### Files
+
+```
+lib/pages/
+  actions.ts, file-actions.ts, access.ts, types.ts, room.ts, mappers.ts
+  permissions.ts, templates.ts, collaboration-actions.ts
+  use-spaces-list.ts, use-page-autosave.ts, persistence.ts
+  download.ts, initials.ts, user-display.ts
+
+lib/stellar/config.ts, contract.ts
+lib/vault/commitment.ts, prover.ts, session.ts
+hooks/use-freighter.ts
+
+components/pages/
+  all-spaces-view.tsx, space-detail-view.tsx, page-editor-view.tsx
+  space-card.tsx, space-actions-menu.tsx, page-actions-menu.tsx
+  pages-section-header.tsx, new-page-dialog.tsx, rename-item-dialog.tsx
+  upload-file-button.tsx, space-dialog.tsx, vault-unlock-dialog.tsx
+  page-editor.tsx, page-editor-header.tsx, collaboration-panel.tsx
+
+contracts/vault_verifier/
+circuits/vault_unlock/
+scripts/build-vault-zk.sh
+.agents/skills/          Stellar/Web3 + Drizzle agent skills
+
+app/(app)/pages/...
+```
 
 ## Not done yet
 
-- Feature internals (pages, templates, assistant)
-- Real global search
+- Feature internals (**templates**, **assistant** routes — still skeletons)
+- Real global search (dashboard command palette is nav-only)
 - Attestation feature implementation (beyond anonymous pulse voting pattern)
 - Clerk Organizations / workspace switcher (when enabled in Clerk dashboard)
-- Kanban `collaboration-actions.ts` refactor to use `lib/collaboration/` helpers (Notes done; Kanban panel UI shared)
-- Liveblocks reuse on other features (calendar, whiteboard, AI assistant rooms — room ID pattern in AGENTS.md)
+- Kanban `collaboration-actions.ts` refactor to use `lib/collaboration/` helpers (Notes + shared panel done; Kanban actions still separate)
+- Liveblocks on calendar + AI assistant (room ID pattern documented in AGENTS.md; kanban/notes/whiteboard/pages done)
+- Landing roadmap grid accuracy — update chapters 3/5/6/7/8 status to match shipped features
+- **Web3 hardening:** deploy `vault_verifier` testnet, commit/build `public/zk/` artifacts, embed full Groth16 pairing verify in contract
+- **File storage v2:** blob store (S3/R2) for files >5 MB instead of Postgres base64

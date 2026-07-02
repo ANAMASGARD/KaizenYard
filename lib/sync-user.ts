@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { db, users, type User } from "@/db";
 import { resolvePendingInvites as resolveKanbanInvites } from "@/lib/kanban/collaboration-actions";
 import { resolvePendingNoteInvites } from "@/lib/notes/collaboration-actions";
+import { resolvePendingSpaceInvites } from "@/lib/pages/collaboration-actions";
 import { resolvePendingWhiteboardInvites } from "@/lib/whiteboard/collaboration-actions";
 import { withDbRetry } from "@/lib/with-db-retry";
 
@@ -13,6 +14,7 @@ async function finalizeUserSync(
 ): Promise<User> {
   await resolveKanbanInvites(userId, email);
   await resolvePendingNoteInvites(userId, email);
+  await resolvePendingSpaceInvites(userId, email);
   await resolvePendingWhiteboardInvites(userId, email);
   return row;
 }

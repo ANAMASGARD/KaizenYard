@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kaizenyard
+
+Privacy-first productivity app with **Pages & Spaces** and **ZK Secure Vaults** on Stellar.
+
+## Features
+
+- **Pages & Spaces** — organize work in spaces with Tiptap page editing, templates, favorites, archive
+- **Secure Vaults** — ZK-gated spaces: prove vault passphrase locally, verify unlock on Soroban testnet via Freighter
+- Calendar, Kanban, Notes, Whiteboard (see [AGENTS.md](AGENTS.md))
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+cp .env.example .env   # fill DATABASE_URL, Clerk, Liveblocks, etc.
+npm install
+npm run db:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stellar Hacks: Real-World ZK
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Submission for [Stellar Hacks: Real-World ZK](https://dorahacks.io/hackathon/stellar-hacks-zk/resources).
 
-## Learn More
+### Architecture
 
-To learn more about Next.js, take a look at the following resources:
+```mermaid
+flowchart LR
+  Browser[Browser Tiptap App]
+  Prover[snarkjs Groth16 prover]
+  Freighter[Freighter wallet]
+  Soroban[Soroban vault_verifier]
+  Browser --> Prover
+  Prover --> Freighter
+  Freighter --> Soroban
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### ZK statement
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Circuit `circuits/vault_unlock/vault_unlock.circom` (compile with `-p bls12381`):
 
-## Deploy on Vercel
+| Input | Visibility | Meaning |
+|-------|------------|---------|
+| `secret` | private | Vault passphrase (field element) |
+| `salt` | private | Salt + space label (field element) |
+| `vault_id` | private | Space ID |
+| `commitment` | public | `secret * salt` |
+| `nullifier` | public | `secret + vault_id` (anti-replay) |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Deploy vault verifier (testnet)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# Install Stellar CLI: https://developers.stellar.org/docs/tools/cli
+cd contracts/vault_verifier
+stellar contract build
+stellar keys generate --global deployer --network testnet --fund
+stellar contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/vault_verifier.wasm \
+  --source deployer \
+  --network testnet
+```
+
+Set `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` in `.env` to the deployed contract ID.
+
+### Build ZK artifacts (optional full Groth16 browser prover)
+
+```bash
+chmod +x scripts/build-vault-zk.sh
+./scripts/build-vault-zk.sh   # requires circom + snarkjs CLI
+```
+
+Outputs to `public/zk/` (`vault_unlock.wasm`, `vault_unlock_final.zkey`).
+
+### Demo script (2–3 min)
+
+1. Sign in → **Pages / Spaces**
+2. **New Space** → enable **Secure Vault** → set passphrase
+3. Connect **Freighter** (testnet) → create space
+4. Open vault space → locked page titles (`••••••`)
+5. **Unlock Vault** → enter passphrase → ZK proof generated locally
+6. Sign Soroban tx → show explorer link → pages unlock
+7. Create/edit page in Tiptap
+
+### Limitations (honest)
+
+- Dev Groth16 trusted setup (single contributor) — not production-ready
+- Contract v1 validates public ZK outputs (commitment + nullifier replay guard); full Groth16 pairing verify can be wired when artifacts are deployed
+- Secure vault sharing disabled in v1
+- Testnet only
+
+## Commands
+
+```bash
+npm run dev | build | lint
+npm run db:generate | db:migrate | db:check
+```
+
+## License
+
+Private — see repository owner.

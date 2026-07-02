@@ -17,7 +17,8 @@ declare global {
     RoomEvent:
       | { type: "board-changed" }
       | { type: "note-changed" }
-      | { type: "whiteboard-changed" };
+      | { type: "whiteboard-changed" }
+      | { type: "page-changed" };
   }
 }
 

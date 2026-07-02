@@ -4,13 +4,35 @@ Read this before changing code.
 
 ## Product
 
-Privacy-first productivity app. Core differentiator: **anonymous attestation** — verified customers or employees can leave feedback provably from a real group member, without identifying who.
+Privacy-first **Web3 productivity app** on Stellar. Core differentiators:
 
-Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+), Kanban (Chapter 5), Notes (Chapter 6), and Whiteboard (Chapter 7) implemented; other feature routes are skeletons.
+1. **Anonymous attestation** (roadmap) — verified group members can leave feedback without revealing identity
+2. **ZK Secure Vaults** (Chapter 8, shipped) — Pages & Spaces folders gated by zero-knowledge unlock proofs verified on Soroban testnet via Freighter
+
+Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+), Kanban (Chapter 5), Notes (Chapter 6), Whiteboard (Chapter 7), and **Pages & Spaces + Secure Vaults** (Chapter 8) implemented; templates and assistant routes are skeletons.
+
+**Web3 angle:** Kaizenyard is not a generic SaaS todo app — wallet-connected vault unlock, on-chain nullifier anti-replay, and Circom Groth16 (bls12381) proofs are first-class product features built on **Stellar smart contracts** and **`@stellar/stellar-sdk`**.
+
+## Agent skills (`.agents/skills/`)
+
+Read the matching skill **before** changing code in that domain. Skills live under `.agents/skills/` in this repo.
+
+| Skill | Path | Use when |
+|-------|------|----------|
+| **dapp** | `.agents/skills/dapp/SKILL.md` | Stellar frontend: `@stellar/stellar-sdk`, Freighter, tx build/simulate/sign/submit, Next.js client/server split, contract invocation from browser |
+| **smart-contracts** | `.agents/skills/smart-contracts/SKILL.md` (+ `development.md`, `testing.md`, `security.md`) | Soroban/Rust contracts: `soroban-sdk`, build/deploy, storage, auth, events, upgrades, security review |
+| **zk-proofs** | `.agents/skills/zk-proofs/SKILL.md` | Groth16, Circom/snarkjs, BLS12-381 on-chain verify (CAP-0059), vault/privacy circuits, verifier contracts |
+| **assets** | `.agents/skills/assets/SKILL.md` | Classic Stellar assets, trustlines, SAC bridge, regulated tokens |
+| **data** | `.agents/skills/data/SKILL.md` | Stellar RPC / Horizon queries, simulation, events, indexers |
+| **agentic-payments** | `.agents/skills/agentic-payments/SKILL.md` | x402 / MPP paid APIs, agent payment channels (future integrations) |
+| **standards** | `.agents/skills/standards/SKILL.md` | SEPs, CAPs, ecosystem reference, which standard applies |
+| **drizzle-best-practices** | `.agents/skills/drizzle-best-practices/SKILL.md` | Drizzle ORM v1 RC + Postgres schema, queries, migrations |
+
+**Cross-skill routing:** vault/ZK work → `zk-proofs` + `smart-contracts` + `dapp`. DB/schema work → `drizzle-best-practices`. On-chain reads → `data`. Token/trustline flows → `assets` + `standards`.
 
 ## Project
 
-Next.js 16 App Router. Stack: React 19, TypeScript, Clerk auth, Neon Postgres + Drizzle ORM v1 RC, Tailwind v4, RetroUI components. Single app at repo root — not a monorepo.
+Next.js 16 App Router. Stack: React 19, TypeScript, Clerk auth, Neon Postgres + Drizzle ORM v1 RC, Tailwind v4, RetroUI components, **Stellar (`@stellar/stellar-sdk`, `@stellar/freighter-api`, Soroban contracts, Circom/snarkjs)**. Single app at repo root — not a monorepo.
 
 ## Layout
 
@@ -29,7 +51,7 @@ app/
     tasks/page.tsx             full kanban (boards, columns, DnD, calendar sync, Liveblocks collaboration)
     notes/page.tsx             full notes (Tiptap editor, STT, TTS, AI refine, Liveblocks Yjs sharing)
     whiteboard/page.tsx         full whiteboard (Excalidraw, AI diagrams, PNG export, Liveblocks Yjs sharing)
-    pages/page.tsx
+    pages/page.tsx              full pages & spaces (grid, vaults, Tiptap editor, Liveblocks Yjs)
     templates/page.tsx
     settings/[[...rest]]/page.tsx   Clerk UserProfile
 components/
@@ -39,12 +61,16 @@ components/
   kanban/                     boards sidebar, columns, cards, task dialog, DnD, collaboration, comments
   notes/                      sidebar, Tiptap editor, slash commands, STT, TTS, AI refine, collaboration panel
   whiteboard/                 sidebar, Excalidraw canvas, AI diagrams, sticky notes, collaboration panel
+  pages/                      all-spaces grid, space detail, page editor, vault unlock, collaboration panel
   brand/logo.tsx              shared SVG logo
   auth-header.tsx             legacy header (unused; keep for future)
   user-sync.tsx               client: sync Clerk user → DB on visit
   retroui/                    UI kit — not components/ui/
 db/                           index.ts, schema.ts
-lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, whiteboard/, liveblocks/
+lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, whiteboard/, pages/, stellar/, vault/, liveblocks/
+hooks/                        use-freighter.ts (Stellar Freighter wallet)
+contracts/vault_verifier/     Soroban ZK vault policy contract (Rust)
+circuits/vault_unlock/        Circom Groth16 circuit (bls12381)
 app/api/liveblocks-auth/      Liveblocks room auth (Clerk + board/note/whiteboard role)
 app/api/assemblyai/token/     AssemblyAI temporary streaming token
 app/api/notes/ai-refine/      OpenRouter text refinement for selected note text (qwen/qwen3.5-flash-02-23)
@@ -54,7 +80,39 @@ migrations/                   Drizzle SQL migrations
 memory/                       session notes for agents (memory.md)
 ```
 
-`@/*` → repo root. No `src/`, `actions/`, `hooks/`, or tests yet.
+`@/*` → repo root. No `src/` or `actions/` folder. `hooks/` has Stellar wallet hook only (`use-freighter.ts`).
+
+## Web3 / Stellar stack
+
+Kaizenyard uses **Stellar testnet** for Secure Vaults (hackathon: Stellar Hacks Real-World ZK).
+
+### Packages
+
+- **`@stellar/stellar-sdk`** — RPC client, `TransactionBuilder`, `Operation.invokeContract`, XDR encode/decode, submit/simulate (`lib/stellar/contract.ts`)
+- **`@stellar/freighter-api`** — browser wallet connect/sign (`hooks/use-freighter.ts`)
+- **`snarkjs`** — browser Groth16 prover for vault unlock (`lib/vault/prover.ts`; artifacts in `public/zk/` after `./scripts/build-vault-zk.sh`)
+
+### On-chain
+
+- **`contracts/vault_verifier/`** — Soroban Rust contract: `register_vault`, `verify_unlock` (commitment + nullifier policy layer; full pairing verify optional)
+- **`circuits/vault_unlock/vault_unlock.circom`** — compile with **`-p bls12381`** for CAP-0059 compatibility
+
+### Client libs
+
+```
+lib/stellar/config.ts       network, RPC URL, contract ID from env
+lib/stellar/contract.ts     build XDR, simulate, submit signed tx via Stellar SDK
+lib/vault/commitment.ts     passphrase → field commitment + salt
+lib/vault/prover.ts         snarkjs fullProve (falls back if wasm/zkey missing)
+lib/vault/session.ts        client session unlock state per spaceId
+hooks/use-freighter.ts      Freighter connect / sign / address
+```
+
+### Env (Stellar)
+
+`NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` (after `stellar contract deploy`).
+
+**Before changing Stellar code:** read `.agents/skills/dapp/SKILL.md` (frontend/SDK) and `.agents/skills/zk-proofs/SKILL.md` (circuits/verify). For contract changes: `.agents/skills/smart-contracts/SKILL.md`.
 
 ## Landing page (`/`)
 
@@ -145,7 +203,7 @@ npm run db:generate | db:migrate | db:check   # schema changes: edit schema → 
 
 ## Env (copy `.env.example` → `.env`, never commit)
 
-`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENROUTER_API_KEY` (server-only for `/api/notes/ai-refine` and `/api/whiteboard/ai-generate` via OpenRouter; model `qwen/qwen3.5-flash-02-23`). Optional: `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE` for OpenRouter rankings metadata. Do not read or print `.env`.
+`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENROUTER_API_KEY` (server-only for `/api/notes/ai-refine` and `/api/whiteboard/ai-generate` via OpenRouter; model `qwen/qwen3.5-flash-02-23`). Optional: `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE` for OpenRouter rankings metadata. **Pages Secure Vaults:** `NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` (deploy `contracts/vault_verifier` to testnet). Do not read or print `.env`.
 
 ## Clerk
 
@@ -178,16 +236,18 @@ await db.select().from(users);
 - `note_collaborators` — email invites per note (`editor` | `viewer`); pending until invitee signs up; access in `lib/notes/access.ts`, invites in `lib/notes/collaboration-actions.ts`
 - `whiteboards` — per-user whiteboard pages (`title`, `color`, `content` jsonb Excalidraw scene, `pinned`, soft-delete `deletedAt`); server actions in `lib/whiteboard/actions.ts`
 - `whiteboard_collaborators` — email invites per whiteboard (`editor` | `viewer`); pending until invitee signs up; access in `lib/whiteboard/access.ts`, invites in `lib/whiteboard/collaboration-actions.ts`
+- `spaces`, `pages`, `space_collaborators`, `space_files` — folder-style Pages & Spaces; vault fields on `spaces`; file attachments (base64 in Postgres, 5 MB limit v1); server actions in `lib/pages/actions.ts`, `lib/pages/file-actions.ts`
 
-## Liveblocks (Kanban + Notes + Whiteboard collaboration)
+## Liveblocks (Kanban + Notes + Whiteboard + Pages collaboration)
 
 - Packages: `@liveblocks/client`, `@liveblocks/react`, `@liveblocks/node`, `@liveblocks/yjs`, `yjs` (same Liveblocks version)
 - **Auth-endpoint mode** — client uses `LiveblocksProvider authEndpoint="/api/liveblocks-auth"`, not `publicApiKey`
 - Kanban room per board: `kanban:board:{boardId}` (`lib/kanban/room.ts` — safe for client imports)
 - Notes room per page: `notes:page:{noteId}` (`lib/notes/room.ts` — safe for client imports)
 - Whiteboard room per page: `whiteboard:page:{whiteboardId}` (`lib/whiteboard/room.ts` — safe for client imports)
-- Server access checks: `lib/kanban/access.ts`, `lib/notes/access.ts`, `lib/whiteboard/access.ts` — **never import from client components** (pulls in `db`)
-- Types: `lib/liveblocks/config.ts` — `Presence` (optional `cursor`), `UserMeta`, `ThreadMetadata: { taskId }`, `RoomEvent: board-changed | note-changed | whiteboard-changed`
+- Pages room per page: `pages:page:{pageId}` (`lib/pages/room.ts` — safe for client imports)
+- Server access checks: `lib/kanban/access.ts`, `lib/notes/access.ts`, `lib/whiteboard/access.ts`, `lib/pages/access.ts` — **never import from client components** (pulls in `db`)
+- Types: `lib/liveblocks/config.ts` — `Presence` (optional `cursor`), `UserMeta`, `ThreadMetadata: { taskId }`, `RoomEvent: board-changed | note-changed | whiteboard-changed | page-changed`
 - Kanban: Postgres source of truth; Liveblocks for presence, task comment threads, board-change broadcast sync
 - Notes: Postgres stores metadata + debounced Tiptap JSON snapshots; Liveblocks Yjs for real-time co-editing + presence
 - Whiteboard: Postgres stores metadata + debounced Excalidraw scene snapshots; Liveblocks Yjs for real-time co-editing + pointer presence
@@ -211,10 +271,50 @@ await db.select().from(users);
 - **Sticky notes:** custom toolbar button inserts rectangle+text preset (`lib/whiteboard/sticky-note.ts`)
 - **Access:** editors draw + AI; viewers read-only + export; owners manage delete/invites
 
+## Pages & Spaces (Chapter 8 — done)
+
+Folder-style organization with optional **ZK Secure Vaults** (Web3).
+
+### UX (neo-brutalism + RetroUI only)
+
+- **`/pages`** — All Spaces: hero copy, filter tabs (All / Favorites / Recently Opened / Archived), search, grid/list, **New Space** + **New Page**, space cards (folder icon, owner initials, page/file counts, star + ⋯ menu)
+- **`/pages/space/[id]`** — Space folder: ← All Spaces, unified table of **pages + files** (Page Name + “By XX”, Type, Updated, star + ⋯)
+- **`/pages/space/[id]/[pageId]`** — Tiptap editor (templates, STT/TTS, Liveblocks Yjs)
+
+### Page / file actions (RetroUI `Menu`)
+
+Rename, Move (space picker), Duplicate, Favorite, Share (copy link), Export (JSON for pages), Archive, Delete. Files: Upload (≤5 MB), Download, same move/rename/archive/delete.
+
+### Data
+
+- `spaces`, `pages`, `space_collaborators`, `space_files`
+- Vault fields: `isVault`, `vaultCommitment`, `vaultSalt`, `stellarNullifierRoot`
+
+### Editor & collaboration
+
+- Reuses Notes Tiptap stack (slash commands, STT/TTS bubble menu, autosave)
+- Liveblocks Yjs: `pages:page:{pageId}`; registered in `lib/liveblocks/room-auth.ts`
+
+### Secure Vaults (Web3)
+
+- Client-side commitment from passphrase; unlock via **Freighter** + Soroban `vault_verifier.verify_unlock` on testnet
+- ZK: `circuits/vault_unlock/vault_unlock.circom` (bls12381) + optional `public/zk/` snarkjs artifacts; `scripts/build-vault-zk.sh`
+- Stellar client: `lib/stellar/`, `hooks/use-freighter.ts`, `lib/vault/` (commitment, prover, session)
+
+### Key files
+
+```
+lib/pages/actions.ts, file-actions.ts, access.ts, types.ts, room.ts, mappers.ts
+lib/pages/download.ts, initials.ts, user-display.ts
+components/pages/all-spaces-view.tsx, space-detail-view.tsx, page-editor-view.tsx
+components/pages/space-card.tsx, space-actions-menu.tsx, page-actions-menu.tsx
+components/pages/new-page-dialog.tsx, upload-file-button.tsx, vault-unlock-dialog.tsx
+```
+
 ## Rules
 
 - Minimize scope; match existing patterns; no drive-by refactors
-- No todo-app tutorial code; no Stellar/wallet code unless asked
+- No todo-app tutorial code; **Stellar/Freighter/ZK only for Secure Vaults and documented Web3 features** — read `.agents/skills/` before touching chain code
 - Commits only when user asks
 - Ask user before guessing product requirements
 - Landing hero stays **minimal**; full marketing content lives in scroll sections below

@@ -368,3 +368,109 @@ export const whiteboardCollaborators = pgTable(
 export type Whiteboard = typeof whiteboards.$inferSelect;
 export type NewWhiteboard = typeof whiteboards.$inferInsert;
 export type WhiteboardCollaborator = typeof whiteboardCollaborators.$inferSelect;
+
+export const spaces = pgTable(
+  "spaces",
+  {
+    id: serial("id").primaryKey(),
+    clerkId: text("clerk_id").notNull(),
+    name: text("name").notNull().default("Untitled Space"),
+    description: text("description"),
+    color: text("color").notNull().default("yellow"),
+    isVault: boolean("is_vault").default(false).notNull(),
+    vaultCommitment: text("vault_commitment"),
+    vaultSalt: text("vault_salt"),
+    stellarNullifierRoot: text("stellar_nullifier_root"),
+    pinned: boolean("pinned").default(false).notNull(),
+    isFavorite: boolean("is_favorite").default(false).notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("spaces_clerk_deleted_idx").on(table.clerkId, table.deletedAt),
+    index("spaces_clerk_updated_idx").on(table.clerkId, table.updatedAt),
+  ],
+);
+
+export const spaceCollaborators = pgTable(
+  "space_collaborators",
+  {
+    id: serial("id").primaryKey(),
+    spaceId: integer("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    clerkId: text("clerk_id"),
+    role: text("role").notNull().default("editor"),
+    invitedByClerkId: text("invited_by_clerk_id").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("space_collaborators_space_email_idx").on(table.spaceId, table.email),
+    index("space_collaborators_clerk_id_idx").on(table.clerkId),
+  ],
+);
+
+export const pages = pgTable(
+  "pages",
+  {
+    id: serial("id").primaryKey(),
+    spaceId: integer("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
+    clerkId: text("clerk_id").notNull(),
+    title: text("title").notNull().default("Untitled"),
+    template: text("template").notNull().default("blank"),
+    content: jsonb("content").notNull().default({ type: "doc", content: [] }),
+    isFavorite: boolean("is_favorite").default(false).notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    lastEditedByClerkId: text("last_edited_by_clerk_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("pages_space_deleted_idx").on(table.spaceId, table.deletedAt),
+    index("pages_clerk_updated_idx").on(table.clerkId, table.updatedAt),
+  ],
+);
+
+export const spaceFiles = pgTable(
+  "space_files",
+  {
+    id: serial("id").primaryKey(),
+    spaceId: integer("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
+    pageId: integer("page_id").references(() => pages.id, { onDelete: "set null" }),
+    clerkId: text("clerk_id").notNull(),
+    name: text("name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    dataBase64: text("data_base64").notNull(),
+    isFavorite: boolean("is_favorite").default(false).notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("space_files_space_deleted_idx").on(table.spaceId, table.deletedAt),
+    index("space_files_clerk_idx").on(table.clerkId),
+  ],
+);
+
+export type Space = typeof spaces.$inferSelect;
+export type NewSpace = typeof spaces.$inferInsert;
+export type SpaceCollaborator = typeof spaceCollaborators.$inferSelect;
+export type Page = typeof pages.$inferSelect;
+export type NewPage = typeof pages.$inferInsert;
+export type SpaceFile = typeof spaceFiles.$inferSelect;
+export type NewSpaceFile = typeof spaceFiles.$inferInsert;

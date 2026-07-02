@@ -1,0 +1,1 @@
+export const PAGE_AUTOSAVE_DEBOUNCE_MS = 800;
