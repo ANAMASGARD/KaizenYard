@@ -12,7 +12,7 @@ declare global {
     ThreadMetadata: {
       taskId: number;
     };
-    RoomEvent: { type: "board-changed" };
+    RoomEvent: { type: "board-changed" } | { type: "note-changed" };
   }
 }
 

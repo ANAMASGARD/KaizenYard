@@ -273,3 +273,48 @@ export type KanbanTaskPulse = typeof kanbanTaskPulses.$inferSelect;
 export type KanbanTaskPulseVote = typeof kanbanTaskPulseVotes.$inferSelect;
 export type KanbanAutomation = typeof kanbanAutomations.$inferSelect;
 export type KanbanBoardCollaborator = typeof kanbanBoardCollaborators.$inferSelect;
+
+export const notes = pgTable(
+  "notes",
+  {
+    id: serial("id").primaryKey(),
+    clerkId: text("clerk_id").notNull(),
+    title: text("title").notNull().default("Untitled"),
+    color: text("color").notNull().default("yellow"),
+    content: jsonb("content").notNull().default({ type: "doc", content: [] }),
+    pinned: boolean("pinned").default(false).notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("notes_clerk_deleted_idx").on(table.clerkId, table.deletedAt),
+    index("notes_clerk_updated_idx").on(table.clerkId, table.updatedAt),
+  ],
+);
+
+export const noteCollaborators = pgTable(
+  "note_collaborators",
+  {
+    id: serial("id").primaryKey(),
+    noteId: integer("note_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    clerkId: text("clerk_id"),
+    role: text("role").notNull().default("editor"),
+    invitedByClerkId: text("invited_by_clerk_id").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("note_collaborators_note_email_idx").on(table.noteId, table.email),
+    index("note_collaborators_clerk_id_idx").on(table.clerkId),
+  ],
+);
+
+export type Note = typeof notes.$inferSelect;
+export type NewNote = typeof notes.$inferInsert;
+export type NoteCollaborator = typeof noteCollaborators.$inferSelect;

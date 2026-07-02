@@ -1,5 +1,5 @@
-import { SkeletonPage } from "@/components/dashboard/skeleton-page";
+import { NotesPage } from "@/components/notes/notes-page";
 
-export default function NotesPage() {
-  return <SkeletonPage title="Notes" />;
+export default function Page() {
+  return <NotesPage />;
 }

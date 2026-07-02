@@ -1,7 +1,9 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { Liveblocks } from "@liveblocks/node";
-import { getBoardRole } from "@/lib/kanban/access";
-import { parseKanbanBoardRoomId } from "@/lib/kanban/room";
+import {
+  isKnownLiveblocksRoom,
+  resolveLiveblocksRoomAccess,
+} from "@/lib/liveblocks/room-auth";
 import "@/lib/liveblocks/config";
 import { colorForUserId } from "@/lib/liveblocks/user-color";
 
@@ -30,13 +32,12 @@ export async function POST(request: Request) {
     return new Response("Missing room", { status: 400 });
   }
 
-  const boardId = parseKanbanBoardRoomId(room);
-  if (boardId === null) {
+  if (!isKnownLiveblocksRoom(room)) {
     return new Response("Invalid room", { status: 400 });
   }
 
-  const role = await getBoardRole(boardId, userId);
-  if (!role) {
+  const access = await resolveLiveblocksRoomAccess(room, userId);
+  if (!access) {
     return new Response("Forbidden", { status: 403 });
   }
 
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
 
   session.allow(
     room,
-    role === "viewer" ? session.READ_ACCESS : session.FULL_ACCESS,
+    access === "viewer" ? session.READ_ACCESS : session.FULL_ACCESS,
   );
 
   const { body: responseBody, status } = await session.authorize();

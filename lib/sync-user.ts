@@ -1,7 +1,8 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { eq, sql } from "drizzle-orm";
 import { db, users, type User } from "@/db";
-import { resolvePendingInvites } from "@/lib/kanban/collaboration-actions";
+import { resolvePendingInvites as resolveKanbanInvites } from "@/lib/kanban/collaboration-actions";
+import { resolvePendingNoteInvites } from "@/lib/notes/collaboration-actions";
 import { withDbRetry } from "@/lib/with-db-retry";
 
 async function finalizeUserSync(
@@ -9,7 +10,8 @@ async function finalizeUserSync(
   email: string,
   row: User,
 ): Promise<User> {
-  await resolvePendingInvites(userId, email);
+  await resolveKanbanInvites(userId, email);
+  await resolvePendingNoteInvites(userId, email);
   return row;
 }
 

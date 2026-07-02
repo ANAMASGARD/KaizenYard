@@ -51,7 +51,7 @@ Replaced placeholder home with a full neo-brutalist marketing site:
 
 - Route group `app/(app)/` with `DashboardShell` layout
 - **Protected routes** in `proxy.ts`: `/dashboard`, `/assistant`, `/calendar`, `/tasks`, `/notes`, `/whiteboard`, `/pages`, `/templates`, `/settings`
-- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar** and **Tasks/Kanban** — full features)
+- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar**, **Tasks/Kanban**, and **Notes** — full features)
 - **Settings** — full Clerk `UserProfile` at `/settings` (catch-all `[[...rest]]`)
 - **Theme toggle** — mobile top bar right; desktop fixed `top-5 right-5`
 
@@ -163,6 +163,7 @@ Migrations: `20260701155506_icy_timeslip` (core kanban), `20260701162208_warm_po
 - **Postgres = source of truth** for boards/columns/tasks; Liveblocks for presence, comments, and `board-changed` broadcast sync (not Storage)
 - **Roles:** `owner` (board `clerkId`), `editor` (mutate), `viewer` (read-only UI + comments read)
 - **Invites:** owner invites by email via collaboration panel; pending rows activate on sign-up (`resolvePendingInvites` in `lib/sync-user.ts`)
+- **Shared UI:** `components/collaboration/collaboration-panel.tsx` (Kanban wrapper passes board actions)
 - **UI:** Collaborate dialog, live avatar stack, per-task comment threads (custom RetroUI, not `@liveblocks/react-ui`), comment count on cards, shared-board icon in sidebar
 - **Realtime sync:** `useBoardRealtimeSync` — debounced refetch on remote `board-changed` events after local mutations call `notifyBoardChanged()`
 - **Client wiring:** `LiveblocksProvider authEndpoint` on `KanbanPage`; `RoomProvider` + `ClientSideSuspense` per active board
@@ -201,6 +202,83 @@ app/(app)/tasks/pulse/[token]/page.tsx
 - Native `<select>` in automation rule dialog (RetroUI Select export pitfalls)
 - Form remount via `key` to avoid `set-state-in-effect` ESLint in dialogs
 - `Textarea` untyped — use `ChangeEvent<HTMLTextAreaElement>` on `onChange`
+
+## Notes (Chapter 6 + hardening — done)
+
+### Data
+
+- `notes` — per-user note pages (title, color, content jsonb Tiptap JSON, pinned, soft-delete `deletedAt`, sort order)
+- `note_collaborators` — email invites per note (editor/viewer roles, pending until invitee signs up)
+
+Migration: `20260701171518_bright_blue_shield`
+
+### Core Notes features
+
+- Two-pane layout: notes sidebar + Tiptap editor (no folders)
+- Sidebar: search, new note, pin, color dot, context menu (rename/duplicate/delete), trash section
+- Tiptap: slash commands, sticky toolbar, bubble menu, task lists, auto-save, saved status, word count
+- AI Refine in bubble menu (grammar, rephrase, shorter/longer, simplify, tone) via `/api/notes/ai-refine` + OpenAI (`noteId` required + editor access check)
+- AssemblyAI Universal Streaming STT: `Speak to Note` button, live preview, streaming insert via `useAssemblyAIStreaming` + `/api/assemblyai/token`
+- Mobile notes drawer; neo-brutalist RetroUI throughout
+- Role gating via `getNoteCapabilities()` — viewers read-only; editors can edit; owners manage trash/invites
+
+### Liveblocks Yjs co-editing
+
+- Room ID: `notes:page:{noteId}` per active note
+- `@liveblocks/yjs` + Tiptap Collaboration + CollaborationCaret extensions
+- Postgres debounced snapshots (~800ms); Y.Doc seeded from DB when room fragment empty after provider sync
+- Email sharing like Kanban: collaboration panel, editor/viewer roles, pending invite resolution in `lib/sync-user.ts`
+- Trashed notes deny collaborator access (`getNoteRole` checks `deletedAt`)
+- Autosave flushes pending title/content on note switch and unmount (no lost titles)
+
+### Structural refactor (maintainability)
+
+- **`lib/collaboration/`** — shared types, email normalize, collaborator display mapper (Kanban + Notes)
+- **`components/collaboration/collaboration-panel.tsx`** — single UI; Kanban/Notes panels are thin wrappers
+- **`lib/notes/use-notes-list.ts`** — list state, search debounce, CRUD helpers (parent owns orchestration)
+- **`lib/notes/mappers.ts`** — `noteRecordToListItem` / `noteRowToListItem` (no duplicated mapping)
+- **`lib/notes/permissions.ts`** — `getNoteCapabilities(role)` for UI gating
+- **`lib/notes/persistence.ts`** — documents Yjs body vs Postgres title/metadata contract
+- **`lib/liveblocks/room-auth.ts`** — room registry for `/api/liveblocks-auth` (kanban + notes handlers)
+- **`lib/notes/slash-command-types.ts`** — slash command types in lib (not UI layer)
+- Share panel: any collaborator with viewer+ can list members; only owner can invite/remove
+- Removed dead Undo/Redo toolbar buttons (StarterKit `undoRedo: false`)
+- RetroUI `Menu.tsx` — added `Positioner` wrapper (fixes slash command menu crash)
+
+### Files
+
+```
+lib/collaboration/
+  types.ts, email.ts, format-collaborator.ts
+
+lib/notes/
+  actions.ts, types.ts, room.ts, access.ts, collaboration-actions.ts
+  mappers.ts, permissions.ts, persistence.ts, use-notes-list.ts
+  ai-refine-prompts.ts, date-utils.ts, slash-command.ts, slash-command-types.ts
+  use-note-autosave.ts, use-assemblyai-streaming.ts
+
+lib/liveblocks/
+  room-auth.ts
+
+components/collaboration/
+  collaboration-panel.tsx
+
+components/notes/
+  notes-page.tsx, notes-sidebar.tsx, note-list-item.tsx, note-editor.tsx
+  note-editor-header.tsx, note-toolbar.tsx, note-bubble-menu.tsx
+  slash-command-list.tsx, speak-to-note.tsx, collaboration-panel.tsx
+  trash-panel.tsx, color-swatch-picker.tsx, active-collaborators.tsx
+
+app/(app)/notes/page.tsx
+app/api/assemblyai/token/route.ts
+app/api/notes/ai-refine/route.ts
+```
+
+### Env (Notes)
+
+- `OPENAI_API_KEY` — AI Refine (`/api/notes/ai-refine`)
+- `ASSEMBLYAI_API_KEY` — Speak to Note token route (`/api/assemblyai/token`)
+- `LIVEBLOCKS_SECRET_KEY` — shared with Kanban (auth-endpoint mode)
 
 ## Dark mode (full-site — done)
 
@@ -263,10 +341,12 @@ db/
 
 lib/
   mask-email.ts           partial email masking for sidebar
+  collaboration/          shared invite types, email normalize, collaborator display mapper
   calendar/               categories, date-utils, server actions, types, pulse-actions
   kanban/                 boards/columns/tasks, pulse, automations, collaboration, Liveblocks sync
-  liveblocks/             types, user colors, comment body helpers
-  sync-user.ts            Clerk → users upsert + pending board invite resolution
+  notes/                  CRUD, Yjs co-edit, AI refine, AssemblyAI STT, use-notes-list orchestration
+  liveblocks/             types, user colors, comment body helpers, room-auth registry
+  sync-user.ts            Clerk → users upsert + pending board/note invite resolution
   format-db-error.ts      readable DB errors
   with-db-retry.ts        transient connection retry
   use-is-client.ts        hydration-safe client flag
@@ -289,8 +369,9 @@ scripts/
 
 ## Not done yet
 
-- Feature internals (notes, whiteboard, pages, templates, assistant)
+- Feature internals (whiteboard, pages, templates, assistant)
 - Real global search
 - Attestation feature implementation (beyond anonymous pulse voting pattern)
 - Clerk Organizations / workspace switcher (when enabled in Clerk dashboard)
-- Liveblocks reuse on other features (calendar, notes, whiteboard, AI assistant rooms — room ID pattern documented in plan)
+- Kanban `collaboration-actions.ts` refactor to use `lib/collaboration/` helpers (Notes done; Kanban panel UI shared)
+- Liveblocks reuse on other features (calendar, whiteboard, AI assistant rooms — room ID pattern in AGENTS.md)

@@ -6,7 +6,7 @@ Read this before changing code.
 
 Privacy-first productivity app. Core differentiator: **anonymous attestation** — verified customers or employees can leave feedback provably from a real group member, without identifying who.
 
-Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+) and Kanban (Chapter 5) implemented; other feature routes are skeletons.
+Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+), Kanban (Chapter 5), and Notes (Chapter 6) implemented; other feature routes are skeletons.
 
 ## Project
 
@@ -27,7 +27,7 @@ app/
     assistant/page.tsx
     calendar/page.tsx         full calendar (month/week, DnD, drafts)
     tasks/page.tsx             full kanban (boards, columns, DnD, calendar sync, Liveblocks collaboration)
-    notes/page.tsx
+    notes/page.tsx             full notes (Tiptap editor, STT, AI refine, Liveblocks Yjs sharing)
     whiteboard/page.tsx
     pages/page.tsx
     templates/page.tsx
@@ -37,13 +37,16 @@ components/
   dashboard/                  app shell + sidebar
   calendar/                   month/week views, draft panel, DnD, event dialog
   kanban/                     boards sidebar, columns, cards, task dialog, DnD, collaboration, comments
+  notes/                      sidebar, Tiptap editor, slash commands, STT, AI refine, collaboration panel
   brand/logo.tsx              shared SVG logo
   auth-header.tsx             legacy header (unused; keep for future)
   user-sync.tsx               client: sync Clerk user → DB on visit
   retroui/                    UI kit — not components/ui/
 db/                           index.ts, schema.ts
-lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, liveblocks/
-app/api/liveblocks-auth/      Liveblocks room auth (Clerk + board role)
+lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, liveblocks/
+app/api/liveblocks-auth/      Liveblocks room auth (Clerk + board/note role)
+app/api/assemblyai/token/     AssemblyAI temporary streaming token
+app/api/notes/ai-refine/      OpenAI text refinement for selected note text
 proxy.ts                      Clerk middleware — use this, NOT middleware.ts
 migrations/                   Drizzle SQL migrations
 memory/                       session notes for agents (memory.md)
@@ -71,7 +74,7 @@ Composed in `components/landing/landing-page.tsx`:
 
 - Wrapped in `DashboardShell` — sidebar + main content
 - All routes protected in `proxy.ts` via `auth.protect()`
-- Pages are **skeletons only** unless user asks for feature internals (calendar and tasks/kanban are implemented)
+- Pages are **skeletons only** unless user asks for feature internals (calendar, tasks/kanban, and notes are implemented)
 - Settings uses Clerk `<UserProfile routing="path" path="/settings" />` in `settings-profile.tsx`
 - **Do not** add `<OrganizationSwitcher />` until Clerk Organizations is enabled in the Clerk dashboard
 
@@ -140,11 +143,11 @@ npm run db:generate | db:migrate | db:check   # schema changes: edit schema → 
 
 ## Env (copy `.env.example` → `.env`, never commit)
 
-`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed). Do not read or print `.env`.
+`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENAI_API_KEY` (server-only for `/api/notes/ai-refine`). Do not read or print `.env`.
 
 ## Clerk
 
-- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`; `await auth.protect()` on match
+- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`, `/api/assemblyai/token(.*)`, `/api/notes/ai-refine(.*)`; `await auth.protect()` on match
 - `ClerkProvider` inside `<body>` in `app/layout.tsx`, `appearance={{ theme: shadcn }}`
 - `await auth()` from `@clerk/nextjs/server` — always async
 - Use `@clerk/nextjs`, not `@clerk/clerk-react`
@@ -169,16 +172,20 @@ await db.select().from(users);
 - `kanban_boards`, `kanban_columns`, `kanban_tasks` — boards with columns, tasks, optional `calendarItemId` sync; server actions in `lib/kanban/actions.ts`
 - `kanban_board_collaborators` — email invites per board (`editor` | `viewer`); pending until invitee signs up; access in `lib/kanban/access.ts`, invites in `lib/kanban/collaboration-actions.ts`
 - Related kanban tables: `kanban_task_pulses`, `kanban_task_pulse_votes`, `kanban_automations`
+- `notes` — per-user note pages (`title`, `color`, `content` jsonb Tiptap JSON, `pinned`, soft-delete `deletedAt`); server actions in `lib/notes/actions.ts`
+- `note_collaborators` — email invites per note (`editor` | `viewer`); pending until invitee signs up; access in `lib/notes/access.ts`, invites in `lib/notes/collaboration-actions.ts`
 
-## Liveblocks (Kanban collaboration)
+## Liveblocks (Kanban + Notes collaboration)
 
-- Packages: `@liveblocks/client`, `@liveblocks/react`, `@liveblocks/node` (same version)
+- Packages: `@liveblocks/client`, `@liveblocks/react`, `@liveblocks/node`, `@liveblocks/yjs`, `yjs` (same Liveblocks version)
 - **Auth-endpoint mode** — client uses `LiveblocksProvider authEndpoint="/api/liveblocks-auth"`, not `publicApiKey`
-- Room per board: `kanban:board:{boardId}` (`lib/kanban/room.ts` — safe for client imports)
-- Server access checks: `lib/kanban/access.ts` — **never import from client components** (pulls in `db`)
-- Types: `lib/liveblocks/config.ts` — `Presence`, `UserMeta`, `ThreadMetadata: { taskId }`, `RoomEvent: { type: "board-changed" }`
-- Postgres remains source of truth; Liveblocks handles presence, task comment threads, and board-change broadcast sync
-- Reuse room ID pattern later: `calendar:user:{userId}`, `notes:page:{pageId}`, `ai:chat:{sessionId}`, etc.
+- Kanban room per board: `kanban:board:{boardId}` (`lib/kanban/room.ts` — safe for client imports)
+- Notes room per page: `notes:page:{noteId}` (`lib/notes/room.ts` — safe for client imports)
+- Server access checks: `lib/kanban/access.ts`, `lib/notes/access.ts` — **never import from client components** (pulls in `db`)
+- Types: `lib/liveblocks/config.ts` — `Presence`, `UserMeta`, `ThreadMetadata: { taskId }`, `RoomEvent: board-changed | note-changed`
+- Kanban: Postgres source of truth; Liveblocks for presence, task comment threads, board-change broadcast sync
+- Notes: Postgres stores metadata + debounced Tiptap JSON snapshots; Liveblocks Yjs for real-time co-editing + presence
+- Reuse room ID pattern later: `calendar:user:{userId}`, `whiteboard:page:{pageId}`, `ai:chat:{sessionId}`, etc.
 
 ## Rules
 
