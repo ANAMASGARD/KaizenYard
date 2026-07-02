@@ -3,9 +3,11 @@
 import { Check, MoreHorizontal, Pin, Share2, Users } from "lucide-react";
 import type { SaveStatus } from "@/lib/notes/use-note-autosave";
 import { getNoteCapabilities } from "@/lib/notes/permissions";
+import type { SpeechLanguageId } from "@/lib/notes/speech-languages";
 import type { NoteRole } from "@/lib/notes/room";
 import { formatRelativeTime } from "@/lib/notes/date-utils";
 import { ActiveCollaborators } from "@/components/notes/active-collaborators";
+import { ReadAloud } from "@/components/notes/read-aloud";
 import { SpeakToNote } from "@/components/notes/speak-to-note";
 import { Button } from "@/components/retroui/Button";
 import { Input } from "@/components/retroui/Input";
@@ -25,6 +27,14 @@ type NoteEditorHeaderProps = {
   onDuplicate: () => void;
   onDelete: () => void;
   onTranscript: (text: string) => void;
+  onSttStart?: () => void;
+  onSpeechLanguageChange?: (language: SpeechLanguageId) => void;
+  getNoteText: () => string;
+  speak: (text: string) => void;
+  stopTts: () => void;
+  isSpeaking: boolean;
+  ttsSupported: boolean;
+  ttsError?: string | null;
 };
 
 function saveStatusLabel(status: SaveStatus): string {
@@ -57,6 +67,14 @@ export function NoteEditorHeader({
   onDuplicate,
   onDelete,
   onTranscript,
+  onSttStart,
+  onSpeechLanguageChange,
+  getNoteText,
+  speak,
+  stopTts,
+  isSpeaking,
+  ttsSupported,
+  ttsError,
 }: NoteEditorHeaderProps) {
   const { canEdit, canShare, canManage } = getNoteCapabilities(noteRole);
   const readOnly = !canEdit;
@@ -99,6 +117,15 @@ export function NoteEditorHeader({
 
         <div className="flex flex-wrap items-center gap-2">
           <ActiveCollaborators />
+          <ReadAloud
+            getText={getNoteText}
+            label="Read note"
+            speak={speak}
+            stop={stopTts}
+            isSpeaking={isSpeaking}
+            supported={ttsSupported}
+            error={ttsError}
+          />
           {canShare ? (
             <Button type="button" variant="outline" size="sm" onClick={onShare}>
               <Share2 className="size-4" />
@@ -147,7 +174,13 @@ export function NoteEditorHeader({
         </div>
       </div>
 
-      {canEdit ? <SpeakToNote onTranscript={onTranscript} /> : null}
+      {canEdit ? (
+        <SpeakToNote
+          onTranscript={onTranscript}
+          onStart={onSttStart}
+          onLanguageChange={onSpeechLanguageChange}
+        />
+      ) : null}
     </div>
   );
 }

@@ -2,10 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StreamingTranscriber } from "assemblyai/streaming";
+import {
+  getSttConfigForLanguage,
+  type SpeechLanguageId,
+} from "@/lib/notes/speech-languages";
 
 type UseAssemblyAIStreamingOptions = {
   onFinalTranscript: (text: string) => void;
+  language?: SpeechLanguageId;
   enabled?: boolean;
+  onStart?: () => void;
 };
 
 function float32ToInt16(float32: Float32Array): Int16Array {
@@ -17,9 +23,30 @@ function float32ToInt16(float32: Float32Array): Int16Array {
   return int16;
 }
 
+function formatStartError(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return "Could not start recording";
+  }
+
+  const message = err.message.toLowerCase();
+  if (
+    message.includes("permission") ||
+    message.includes("notallowed") ||
+    message.includes("not allowed")
+  ) {
+    return "Microphone access denied — allow mic permission and try again";
+  }
+  if (message.includes("token")) {
+    return "Failed to get transcription token — check AssemblyAI configuration";
+  }
+  return err.message;
+}
+
 export function useAssemblyAIStreaming({
   onFinalTranscript,
+  language = "auto",
   enabled = true,
+  onStart,
 }: UseAssemblyAIStreamingOptions) {
   const [isRecording, setIsRecording] = useState(false);
   const [preview, setPreview] = useState("");
@@ -31,10 +58,20 @@ export function useAssemblyAIStreaming({
   const streamRef = useRef<MediaStream | null>(null);
   const lastFinalRef = useRef("");
   const onFinalRef = useRef(onFinalTranscript);
+  const onStartRef = useRef(onStart);
+  const languageRef = useRef(language);
 
   useEffect(() => {
     onFinalRef.current = onFinalTranscript;
   }, [onFinalTranscript]);
+
+  useEffect(() => {
+    onStartRef.current = onStart;
+  }, [onStart]);
+
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
 
   const cleanup = useCallback(async () => {
     processorRef.current?.disconnect();
@@ -63,6 +100,7 @@ export function useAssemblyAIStreaming({
   const start = useCallback(async () => {
     if (!enabled || isRecording) return;
 
+    onStartRef.current?.();
     setError(null);
     setPreview("");
     lastFinalRef.current = "";
@@ -70,13 +108,19 @@ export function useAssemblyAIStreaming({
     try {
       const tokenRes = await fetch("/api/assemblyai/token", { method: "POST" });
       if (!tokenRes.ok) {
-        throw new Error("Failed to get transcription token");
+        const body = (await tokenRes.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(body?.error ?? "Failed to get transcription token");
       }
       const { token } = (await tokenRes.json()) as { token: string };
 
+      const sttConfig = getSttConfigForLanguage(languageRef.current);
       const transcriber = new StreamingTranscriber({
         token,
         sampleRate: 16_000,
+        formatTurns: true,
+        ...sttConfig,
       });
 
       transcriber.on("turn", (turn) => {
@@ -123,9 +167,7 @@ export function useAssemblyAIStreaming({
 
       setIsRecording(true);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not start recording",
-      );
+      setError(formatStartError(err));
       await cleanup();
     }
   }, [cleanup, enabled, isRecording]);

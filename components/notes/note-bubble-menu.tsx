@@ -5,6 +5,7 @@ import type { Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { Sparkles } from "lucide-react";
 import { AI_REFINE_ACTIONS, type AiRefineAction } from "@/lib/notes/ai-refine-prompts";
+import { ReadAloud } from "@/components/notes/read-aloud";
 import { Button } from "@/components/retroui/Button";
 import { Popover } from "@/components/retroui/Popover";
 import { cn } from "@/lib/utils";
@@ -13,12 +14,22 @@ type NoteBubbleMenuProps = {
   editor: Editor | null;
   noteId: number;
   readOnly?: boolean;
+  speak: (text: string) => void;
+  stopTts: () => void;
+  isSpeaking: boolean;
+  ttsSupported: boolean;
+  ttsError?: string | null;
 };
 
 export function NoteBubbleMenu({
   editor,
   noteId,
   readOnly = false,
+  speak,
+  stopTts,
+  isSpeaking,
+  ttsSupported,
+  ttsError,
 }: NoteBubbleMenuProps) {
   const [refining, setRefining] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -90,6 +101,22 @@ export function NoteBubbleMenu({
       >
         U
       </Button>
+
+      <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />
+
+      <ReadAloud
+        getText={() => {
+          const { from, to } = editor.state.selection;
+          return editor.state.doc.textBetween(from, to, " ");
+        }}
+        label="Read aloud"
+        speak={speak}
+        stop={stopTts}
+        isSpeaking={isSpeaking}
+        supported={ttsSupported}
+        error={ttsError}
+        compact
+      />
 
       <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />
 

@@ -1,20 +1,49 @@
 "use client";
 
-import { Mic, Square } from "lucide-react";
+import { useState } from "react";
+import { Mic, Square, Volume2 } from "lucide-react";
 import { useAssemblyAIStreaming } from "@/lib/notes/use-assemblyai-streaming";
+import {
+  loadSpeechPrefs,
+  saveSpeechPrefs,
+  SPEECH_LANGUAGE_OPTIONS,
+  type SpeechLanguageId,
+} from "@/lib/notes/speech-languages";
 import { Button } from "@/components/retroui/Button";
+import { Select } from "@/components/retroui/Select";
 import { cn } from "@/lib/utils";
 
 type SpeakToNoteProps = {
   enabled?: boolean;
   onTranscript: (text: string) => void;
+  onStart?: () => void;
+  onLanguageChange?: (language: SpeechLanguageId) => void;
 };
 
-export function SpeakToNote({ enabled = true, onTranscript }: SpeakToNoteProps) {
+export function SpeakToNote({
+  enabled = true,
+  onTranscript,
+  onStart,
+  onLanguageChange,
+}: SpeakToNoteProps) {
+  const [language, setLanguage] = useState<SpeechLanguageId>(() => {
+    if (typeof window === "undefined") return "auto";
+    return loadSpeechPrefs().sttLang;
+  });
+
   const { isRecording, preview, error, start, stop } = useAssemblyAIStreaming({
     enabled,
+    language,
     onFinalTranscript: onTranscript,
+    onStart,
   });
+
+  function handleLanguageChange(nextLanguage: SpeechLanguageId | null) {
+    if (!nextLanguage || isRecording) return;
+    setLanguage(nextLanguage);
+    saveSpeechPrefs({ sttLang: nextLanguage, ttsLang: nextLanguage });
+    onLanguageChange?.(nextLanguage);
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -47,7 +76,28 @@ export function SpeakToNote({ enabled = true, onTranscript }: SpeakToNoteProps) 
             <Square className="size-3 fill-current" />
           </Button>
         )}
+
+        <Select
+          value={language}
+          onValueChange={handleLanguageChange}
+          disabled={isRecording}
+        >
+            <Select.Trigger className="h-8 min-w-32 px-2 text-sm shadow-sm">
+              <Select.Value placeholder="Language" />
+            </Select.Trigger>
+            <Select.Content>
+              {SPEECH_LANGUAGE_OPTIONS.map((option) => (
+                <Select.Item key={option.id} value={option.id}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+        </Select>
       </div>
+
+      <p className="font-sans text-[11px] text-muted-foreground">
+        Auto detects language; pin a language for mixed-content notes.
+      </p>
 
       {isRecording && preview ? (
         <p
@@ -56,6 +106,13 @@ export function SpeakToNote({ enabled = true, onTranscript }: SpeakToNoteProps) 
           )}
         >
           {preview}
+        </p>
+      ) : null}
+
+      {isRecording ? (
+        <p className="inline-flex items-center gap-1 font-sans text-[11px] text-muted-foreground">
+          <Volume2 className="size-3" />
+          Stop recording to change language.
         </p>
       ) : null}
 

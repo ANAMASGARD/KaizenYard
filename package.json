@@ -13,7 +13,6 @@
     "db:check": "node --experimental-strip-types scripts/db-check.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.4",
     "@base-ui/react": "^1.6.0",
     "@clerk/nextjs": "^7.5.11",
     "@clerk/ui": "^1.24.0",
@@ -25,6 +24,7 @@
     "@liveblocks/react": "^3.21.0",
     "@liveblocks/yjs": "^3.21.0",
     "@neondatabase/serverless": "^1.1.0",
+    "@openrouter/sdk": "^0.13.22",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^16.0.1",
     "@tiptap/extension-character-count": "^3.27.1",
@@ -41,7 +41,6 @@
     "@tiptap/starter-kit": "^3.27.1",
     "@tiptap/suggestion": "^3.27.1",
     "@tiptap/y-tiptap": "^3.0.5",
-    "ai": "^7.0.9",
     "assemblyai": "^4.35.0",
     "bignumber.js": "^11.1.4",
     "class-variance-authority": "^0.7.1",

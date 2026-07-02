@@ -1,6 +1,6 @@
 # Kaizenyard — session memory
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 ## Product direction
 
@@ -217,10 +217,11 @@ Migration: `20260701171518_bright_blue_shield`
 - Two-pane layout: notes sidebar + Tiptap editor (no folders)
 - Sidebar: search, new note, pin, color dot, context menu (rename/duplicate/delete), trash section
 - Tiptap: slash commands, sticky toolbar, bubble menu, task lists, auto-save, saved status, word count
-- AI Refine in bubble menu (grammar, rephrase, shorter/longer, simplify, tone) via `/api/notes/ai-refine` + OpenAI (`noteId` required + editor access check)
-- AssemblyAI Universal Streaming STT: `Speak to Note` button, live preview, streaming insert via `useAssemblyAIStreaming` + `/api/assemblyai/token`
+- AI Refine in bubble menu (grammar, rephrase, shorter/longer, simplify, tone) via `/api/notes/ai-refine` + OpenRouter `@openrouter/sdk` model `qwen/qwen3.5-flash-02-23` (`noteId` required + editor access check); **no OpenAI** — removed `ai` / `@ai-sdk/openai`
+- **Multilingual STT:** AssemblyAI streaming via `Speak to Note` — language picker (Auto = `universal-streaming-multilingual` + `languageDetection`; pinned = `u3-rt-pro` + `prompt`); `formatTurns: true`; shared prefs in `speech-languages.ts`
+- **Browser TTS (Read aloud):** Web Speech API via `useWebSpeechTts` — read selection (bubble) or full note (header); Chromium + Firefox desktop target; chunking, voice warmup, `wait-for-speech-voices.ts`; viewers get `note-selection-menu.tsx`; editors also get read-aloud in bubble menu; STT start cancels TTS
 - Mobile notes drawer; neo-brutalist RetroUI throughout
-- Role gating via `getNoteCapabilities()` — viewers read-only; editors can edit; owners manage trash/invites
+- Role gating via `getNoteCapabilities()` — viewers read-only + read-aloud; editors dictate + edit; owners manage trash/invites
 
 ### Liveblocks Yjs co-editing
 
@@ -254,8 +255,10 @@ lib/collaboration/
 lib/notes/
   actions.ts, types.ts, room.ts, access.ts, collaboration-actions.ts
   mappers.ts, permissions.ts, persistence.ts, use-notes-list.ts
-  ai-refine-prompts.ts, date-utils.ts, slash-command.ts, slash-command-types.ts
+  ai-refine-prompts.ts, openrouter.ts, speech-languages.ts
+  date-utils.ts, slash-command.ts, slash-command-types.ts
   use-note-autosave.ts, use-assemblyai-streaming.ts
+  use-web-speech-tts.ts, wait-for-speech-voices.ts
 
 lib/liveblocks/
   room-auth.ts
@@ -266,6 +269,7 @@ components/collaboration/
 components/notes/
   notes-page.tsx, notes-sidebar.tsx, note-list-item.tsx, note-editor.tsx
   note-editor-header.tsx, note-toolbar.tsx, note-bubble-menu.tsx
+  note-selection-menu.tsx, read-aloud.tsx
   slash-command-list.tsx, speak-to-note.tsx, collaboration-panel.tsx
   trash-panel.tsx, color-swatch-picker.tsx, active-collaborators.tsx
 
@@ -276,9 +280,10 @@ app/api/notes/ai-refine/route.ts
 
 ### Env (Notes)
 
-- `OPENAI_API_KEY` — AI Refine (`/api/notes/ai-refine`)
-- `ASSEMBLYAI_API_KEY` — Speak to Note token route (`/api/assemblyai/token`)
+- `OPENROUTER_API_KEY` — AI Refine (`/api/notes/ai-refine`, model `qwen/qwen3.5-flash-02-23`); optional `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE`
+- `ASSEMBLYAI_API_KEY` — Speak to Note token route (`/api/assemblyai/token`); fetch `llms.txt` before changing AssemblyAI code
 - `LIVEBLOCKS_SECRET_KEY` — shared with Kanban (auth-endpoint mode)
+- TTS: no env var (browser `speechSynthesis`); Firefox Android unsupported; Linux Firefox may need speech-dispatcher
 
 ## Dark mode (full-site — done)
 
@@ -344,7 +349,7 @@ lib/
   collaboration/          shared invite types, email normalize, collaborator display mapper
   calendar/               categories, date-utils, server actions, types, pulse-actions
   kanban/                 boards/columns/tasks, pulse, automations, collaboration, Liveblocks sync
-  notes/                  CRUD, Yjs co-edit, AI refine, AssemblyAI STT, use-notes-list orchestration
+  notes/                  CRUD, Yjs co-edit, OpenRouter AI refine, multilingual STT, browser TTS
   liveblocks/             types, user colors, comment body helpers, room-auth registry
   sync-user.ts            Clerk → users upsert + pending board/note invite resolution
   format-db-error.ts      readable DB errors

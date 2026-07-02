@@ -16,12 +16,18 @@ import StarterKit from "@tiptap/starter-kit";
 import * as Y from "yjs";
 import { togglePin } from "@/lib/notes/actions";
 import { createSlashCommandExtension } from "@/lib/notes/slash-command";
+import {
+  loadSpeechPrefs,
+  type SpeechLanguageId,
+} from "@/lib/notes/speech-languages";
 import type { NoteRecord, TiptapJson } from "@/lib/notes/types";
 import { useNoteAutosave } from "@/lib/notes/use-note-autosave";
+import { useWebSpeechTts } from "@/lib/notes/use-web-speech-tts";
 import type { NoteRole } from "@/lib/notes/room";
 import { colorForUserId } from "@/lib/liveblocks/user-color";
 import { NoteBubbleMenu } from "@/components/notes/note-bubble-menu";
 import { NoteEditorHeader } from "@/components/notes/note-editor-header";
+import { NoteSelectionMenu } from "@/components/notes/note-selection-menu";
 import { NoteToolbar } from "@/components/notes/note-toolbar";
 import { SlashCommandList } from "@/components/notes/slash-command-list";
 import { cn } from "@/lib/utils";
@@ -58,6 +64,31 @@ function NoteEditorInner({
   >(() => {});
   const [title, setTitle] = useState(note.title);
   const [lastEdited, setLastEdited] = useState(note.updatedAt);
+  const [ttsLanguage, setTtsLanguage] = useState<SpeechLanguageId>(() => {
+    if (typeof window === "undefined") return "auto";
+    return loadSpeechPrefs().ttsLang;
+  });
+
+  const {
+    speak,
+    stop: stopTts,
+    isSpeaking,
+    supported: ttsSupported,
+    error: ttsError,
+  } = useWebSpeechTts({ languageId: ttsLanguage });
+
+  useEffect(() => {
+    stopTts();
+  }, [note.id, stopTts]);
+
+  useEffect(() => {
+    const syncLanguage = () => {
+      setTtsLanguage(loadSpeechPrefs().ttsLang);
+    };
+
+    window.addEventListener("storage", syncLanguage);
+    return () => window.removeEventListener("storage", syncLanguage);
+  }, []);
 
   const slashExtension = useMemo(
     () => createSlashCommandExtension(SlashCommandList),
@@ -176,6 +207,16 @@ function NoteEditorInner({
     [editor, readOnly, saveNow],
   );
 
+  const getNoteText = useCallback(() => {
+    if (!editor || editor.isDestroyed) return "";
+    return editor.getText();
+  }, [editor]);
+
+  const handleSttStart = useCallback(() => {
+    setTtsLanguage(loadSpeechPrefs().ttsLang);
+    stopTts();
+  }, [stopTts]);
+
   const wordCount = editor?.storage.characterCount?.words?.() ?? 0;
 
   return (
@@ -193,10 +234,38 @@ function NoteEditorInner({
         onDuplicate={onDuplicate}
         onDelete={onDelete}
         onTranscript={handleTranscript}
+        onSttStart={handleSttStart}
+        onSpeechLanguageChange={setTtsLanguage}
+        getNoteText={getNoteText}
+        speak={speak}
+        stopTts={stopTts}
+        isSpeaking={isSpeaking}
+        ttsSupported={ttsSupported}
+        ttsError={ttsError}
       />
 
       {!readOnly ? <NoteToolbar editor={editor} /> : null}
-      <NoteBubbleMenu editor={editor} noteId={note.id} readOnly={readOnly} />
+
+      {!readOnly ? (
+        <NoteBubbleMenu
+          editor={editor}
+          noteId={note.id}
+          speak={speak}
+          stopTts={stopTts}
+          isSpeaking={isSpeaking}
+          ttsSupported={ttsSupported}
+          ttsError={ttsError}
+        />
+      ) : (
+        <NoteSelectionMenu
+          editor={editor}
+          speak={speak}
+          stop={stopTts}
+          isSpeaking={isSpeaking}
+          supported={ttsSupported}
+          error={ttsError}
+        />
+      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-8">
         <EditorContent

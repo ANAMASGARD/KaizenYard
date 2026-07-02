@@ -1,11 +1,14 @@
 import { auth } from "@clerk/nextjs/server";
-import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
 import { requireNoteAccess } from "@/lib/notes/access";
 import {
   buildRefinePrompt,
   type AiRefineAction,
 } from "@/lib/notes/ai-refine-prompts";
+import {
+  extractAssistantText,
+  getOpenRouterClient,
+  NOTES_LLM_MODEL,
+} from "@/lib/notes/openrouter";
 
 const REFINE_ACTIONS: AiRefineAction[] = [
   "improve_grammar",
@@ -46,20 +49,37 @@ export async function POST(request: Request) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.OPENROUTER_API_KEY) {
     return Response.json(
-      { error: "OPENAI_API_KEY is not configured" },
+      { error: "OPENROUTER_API_KEY is not configured" },
       { status: 500 },
     );
   }
 
   try {
-    const { text: refined } = await generateText({
-      model: openai("gpt-4o-mini"),
-      prompt: buildRefinePrompt(action, text),
+    const openRouter = getOpenRouterClient();
+    const result = await openRouter.chat.send({
+      chatRequest: {
+        model: NOTES_LLM_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: buildRefinePrompt(action, text),
+          },
+        ],
+        stream: false,
+      },
     });
 
-    return Response.json({ text: refined.trim() });
+    const refined = extractAssistantText(
+      result.choices[0]?.message?.content,
+    ).trim();
+
+    if (!refined) {
+      return Response.json({ error: "AI refine returned empty text" }, { status: 502 });
+    }
+
+    return Response.json({ text: refined });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "AI refine failed";

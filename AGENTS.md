@@ -27,7 +27,7 @@ app/
     assistant/page.tsx
     calendar/page.tsx         full calendar (month/week, DnD, drafts)
     tasks/page.tsx             full kanban (boards, columns, DnD, calendar sync, Liveblocks collaboration)
-    notes/page.tsx             full notes (Tiptap editor, STT, AI refine, Liveblocks Yjs sharing)
+    notes/page.tsx             full notes (Tiptap editor, STT, TTS, AI refine, Liveblocks Yjs sharing)
     whiteboard/page.tsx
     pages/page.tsx
     templates/page.tsx
@@ -37,7 +37,7 @@ components/
   dashboard/                  app shell + sidebar
   calendar/                   month/week views, draft panel, DnD, event dialog
   kanban/                     boards sidebar, columns, cards, task dialog, DnD, collaboration, comments
-  notes/                      sidebar, Tiptap editor, slash commands, STT, AI refine, collaboration panel
+  notes/                      sidebar, Tiptap editor, slash commands, STT, TTS, AI refine, collaboration panel
   brand/logo.tsx              shared SVG logo
   auth-header.tsx             legacy header (unused; keep for future)
   user-sync.tsx               client: sync Clerk user → DB on visit
@@ -46,7 +46,7 @@ db/                           index.ts, schema.ts
 lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, liveblocks/
 app/api/liveblocks-auth/      Liveblocks room auth (Clerk + board/note role)
 app/api/assemblyai/token/     AssemblyAI temporary streaming token
-app/api/notes/ai-refine/      OpenAI text refinement for selected note text
+app/api/notes/ai-refine/      OpenRouter text refinement for selected note text (qwen/qwen3.5-flash-02-23)
 proxy.ts                      Clerk middleware — use this, NOT middleware.ts
 migrations/                   Drizzle SQL migrations
 memory/                       session notes for agents (memory.md)
@@ -143,7 +143,7 @@ npm run db:generate | db:migrate | db:check   # schema changes: edit schema → 
 
 ## Env (copy `.env.example` → `.env`, never commit)
 
-`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENAI_API_KEY` (server-only for `/api/notes/ai-refine`). Do not read or print `.env`.
+`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENROUTER_API_KEY` (server-only for `/api/notes/ai-refine` via OpenRouter; model `qwen/qwen3.5-flash-02-23`). Optional: `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE` for OpenRouter rankings metadata. Do not read or print `.env`.
 
 ## Clerk
 
@@ -186,6 +186,13 @@ await db.select().from(users);
 - Kanban: Postgres source of truth; Liveblocks for presence, task comment threads, board-change broadcast sync
 - Notes: Postgres stores metadata + debounced Tiptap JSON snapshots; Liveblocks Yjs for real-time co-editing + presence
 - Reuse room ID pattern later: `calendar:user:{userId}`, `whiteboard:page:{pageId}`, `ai:chat:{sessionId}`, etc.
+
+## Notes speech (STT + TTS)
+
+- **AssemblyAI STT:** realtime dictation via `Speak to Note` — `useAssemblyAIStreaming` + `/api/assemblyai/token`. Language picker: Auto (`universal-streaming-multilingual` + `languageDetection`) or pinned (`u3-rt-pro` + `prompt`). Always fetch `https://www.assemblyai.com/docs/llms.txt` before changing AssemblyAI code.
+- **Browser TTS:** read selection or full note via Web Speech API (`useWebSpeechTts`, `read-aloud.tsx`) — no env var; targets **desktop Chromium + Firefox**. Shared language prefs in `lib/notes/speech-languages.ts` (`kaizenyard-notes-speech-prefs`). Cross-browser helpers: `wait-for-speech-voices.ts` (voiceschanged + timeout), chunked utterances, warmup, `onerror` mapping.
+- **Access:** editors dictate + read; viewers read-only (selection bubble via `note-selection-menu.tsx`). STT start cancels active TTS.
+- **Known limits:** Firefox Android unsupported; Linux Firefox may need speech-dispatcher; empty voices under Firefox RFP — show actionable errors, not silent fail.
 
 ## Rules
 
