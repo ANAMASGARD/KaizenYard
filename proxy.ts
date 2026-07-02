@@ -13,6 +13,7 @@ const isProtectedRoute = createRouteMatcher([
   "/api/liveblocks-auth(.*)",
   "/api/assemblyai/token(.*)",
   "/api/notes/ai-refine(.*)",
+  "/api/whiteboard/ai-generate(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

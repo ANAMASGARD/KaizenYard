@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, Plus, Users } from "lucide-react";
+import { MoreHorizontal, PanelLeftClose, Plus, Users } from "lucide-react";
 import { deleteBoard } from "@/lib/kanban/actions";
 import { COLOR_META } from "@/lib/kanban/colors";
 import type { BoardRecord } from "@/lib/kanban/types";
@@ -15,6 +15,7 @@ type BoardSidebarProps = {
   onNewBoard: () => void;
   onEditBoard: (board: BoardRecord) => void;
   onBoardDeleted: (boardId: number) => void;
+  onCollapse?: () => void;
   className?: string;
 };
 
@@ -25,6 +26,7 @@ export function BoardSidebar({
   onNewBoard,
   onEditBoard,
   onBoardDeleted,
+  onCollapse,
   className,
 }: BoardSidebarProps) {
   async function handleDelete(board: BoardRecord) {
@@ -48,16 +50,31 @@ export function BoardSidebar({
         <p className="font-head text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
           My boards
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 px-2 text-xs"
-          onClick={onNewBoard}
-        >
-          <Plus className="size-3.5" />
-          New
-        </Button>
+        <div className="flex items-center gap-1">
+          {onCollapse ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 w-7 shrink-0 p-0 shadow-none"
+              onClick={onCollapse}
+              aria-label="Collapse board list"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose className="size-3.5" />
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={onNewBoard}
+          >
+            <Plus className="size-3.5" />
+            New
+          </Button>
+        </div>
       </div>
 
       <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">

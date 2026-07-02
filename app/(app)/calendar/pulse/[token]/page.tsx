@@ -7,6 +7,7 @@ import {
   getPulseByToken,
 } from "@/lib/calendar/pulse-actions";
 import type { MeetingPulseRecord, PulseVoteType } from "@/lib/calendar/types";
+import { KaizenLoadingScreen } from "@/components/loading/kaizen-loading";
 import { Button } from "@/components/retroui/Button";
 import { Card } from "@/components/retroui/Card";
 
@@ -38,7 +39,11 @@ export default function PulseVotePage() {
 
   if (loading) {
     return (
-      <p className="font-head text-sm text-muted-foreground">Loading pulse…</p>
+      <KaizenLoadingScreen
+        label="Loading pulse"
+        fullHeight={false}
+        className="min-h-[12rem]"
+      />
     );
   }
 

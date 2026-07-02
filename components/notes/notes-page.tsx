@@ -6,7 +6,7 @@ import {
   LiveblocksProvider,
   RoomProvider,
 } from "@liveblocks/react/suspense";
-import { FileText, Menu } from "lucide-react";
+import { FileText, Menu, PanelLeft } from "lucide-react";
 import {
   duplicateNote,
   getNote,
@@ -16,12 +16,15 @@ import { noteRecordToListItem } from "@/lib/notes/mappers";
 import { notePageRoomId } from "@/lib/notes/room";
 import { useNotesList } from "@/lib/notes/use-notes-list";
 import type { NoteRecord } from "@/lib/notes/types";
+import { usePersistedSidebarOpen } from "@/lib/use-persisted-sidebar-open";
 import "@/lib/liveblocks/config";
 import { CollaborationPanel } from "@/components/notes/collaboration-panel";
+import { KaizenLoadingScreen } from "@/components/loading/kaizen-loading";
 import { NoteEditor } from "@/components/notes/note-editor";
 import { NotesSidebar } from "@/components/notes/notes-sidebar";
 import { Button } from "@/components/retroui/Button";
 import { Drawer } from "@/components/retroui/Drawer";
+import { cn } from "@/lib/utils";
 
 function NotesPageContent() {
   const {
@@ -40,6 +43,8 @@ function NotesPageContent() {
   const [activeNote, setActiveNote] = useState<NoteRecord | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [collaborationOpen, setCollaborationOpen] = useState(false);
+  const { open: desktopSidebarOpen, setOpen: setDesktopSidebarOpen } =
+    usePersistedSidebarOpen("kaizenyard-notes-sidebar-open");
 
   const loadActiveNote = useCallback(async (noteId: number) => {
     const note = await getNote(noteId);
@@ -121,11 +126,7 @@ function NotesPageContent() {
   }
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center font-sans text-sm text-muted-foreground">
-        Loading notes…
-      </div>
-    );
+    return <KaizenLoadingScreen label="Loading notes" />;
   }
 
   return (
@@ -143,29 +144,61 @@ function NotesPageContent() {
       </div>
 
       <div className="flex min-h-0 flex-1 gap-3">
-        <NotesSidebar
-          notes={notes}
-          activeNoteId={activeNoteId}
-          query={query}
-          onQueryChange={setQuery}
-          onRefresh={() => void refresh(query.trim() || undefined)}
-          onPatchNote={patchNote}
-          onSelectNote={(id) => void selectNote(id)}
-          onNoteCreated={addNote}
-          onNoteDeleted={handleNoteDeleted}
-          onCreateNote={() => createNoteItem()}
-          className="hidden lg:flex"
-        />
+        {desktopSidebarOpen ? (
+          <NotesSidebar
+            notes={notes}
+            activeNoteId={activeNoteId}
+            query={query}
+            onQueryChange={setQuery}
+            onRefresh={() => void refresh(query.trim() || undefined)}
+            onPatchNote={patchNote}
+            onSelectNote={(id) => void selectNote(id)}
+            onNoteCreated={addNote}
+            onNoteDeleted={handleNoteDeleted}
+            onCreateNote={() => createNoteItem()}
+            onCollapse={() => setDesktopSidebarOpen(false)}
+            className="hidden lg:flex"
+          />
+        ) : (
+          <div className="hidden shrink-0 lg:flex">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-full w-9 rounded border-2 border-border p-0 shadow-none"
+              onClick={() => setDesktopSidebarOpen(true)}
+              aria-label="Show notes list"
+              title="Show notes"
+            >
+              <PanelLeft className="size-4" />
+            </Button>
+          </div>
+        )}
 
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col rounded border-2 border-border bg-background shadow-md">
+        <section className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded border-2 border-border bg-background shadow-md">
+          {!desktopSidebarOpen ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="absolute left-2 top-2 z-10 hidden h-7 w-7 p-0 shadow-none lg:flex"
+              onClick={() => setDesktopSidebarOpen(true)}
+              aria-label="Show notes list"
+              title="Show notes"
+            >
+              <PanelLeft className="size-3.5" />
+            </Button>
+          ) : null}
+          <div
+            className={cn(
+              "flex min-h-0 min-w-0 flex-1 flex-col",
+              !desktopSidebarOpen && "pt-10 lg:pt-11",
+            )}
+          >
           {activeNote && activeNoteId ? (
             <RoomProvider id={notePageRoomId(activeNoteId)}>
               <ClientSideSuspense
-                fallback={
-                  <div className="flex flex-1 items-center justify-center font-sans text-sm text-muted-foreground">
-                    Connecting…
-                  </div>
-                }
+                fallback={<KaizenLoadingScreen label="Connecting" fullHeight={false} className="min-h-[16rem]" />}
               >
                 <NoteEditor
                   note={activeNote}
@@ -195,6 +228,7 @@ function NotesPageContent() {
               </Button>
             </div>
           )}
+          </div>
         </section>
       </div>
 

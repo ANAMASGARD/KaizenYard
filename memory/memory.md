@@ -51,7 +51,7 @@ Replaced placeholder home with a full neo-brutalist marketing site:
 
 - Route group `app/(app)/` with `DashboardShell` layout
 - **Protected routes** in `proxy.ts`: `/dashboard`, `/assistant`, `/calendar`, `/tasks`, `/notes`, `/whiteboard`, `/pages`, `/templates`, `/settings`
-- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar**, **Tasks/Kanban**, and **Notes** — full features)
+- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar**, **Tasks/Kanban**, **Notes**, and **Whiteboard** — full features)
 - **Settings** — full Clerk `UserProfile` at `/settings` (catch-all `[[...rest]]`)
 - **Theme toggle** — mobile top bar right; desktop fixed `top-5 right-5`
 
@@ -285,6 +285,50 @@ app/api/notes/ai-refine/route.ts
 - `LIVEBLOCKS_SECRET_KEY` — shared with Kanban (auth-endpoint mode)
 - TTS: no env var (browser `speechSynthesis`); Firefox Android unsupported; Linux Firefox may need speech-dispatcher
 
+## Whiteboard (Chapter 7 — done)
+
+### Data
+
+- `whiteboards` — per-user boards (title, color, content jsonb Excalidraw scene, pinned, soft-delete `deletedAt`, sort order)
+- `whiteboard_collaborators` — email invites per board (editor/viewer roles, pending until invitee signs up)
+
+Migration: `20260702044645_fine_piledriver`
+
+### Core Whiteboard features
+
+- Two-pane layout: whiteboard sidebar + Excalidraw canvas (neo-brutalist RetroUI chrome)
+- Sidebar: search, new board, pin, color dot, context menu (rename/duplicate/delete)
+- Excalidraw: shapes, draw, text, eraser, image upload; sticky-note shortcut button
+- AI Diagram dialog — flowchart, mind map, system architecture, user journey, process via `/api/whiteboard/ai-generate` + OpenRouter `qwen/qwen3.5-flash-02-23`
+- PNG export via dynamic `exportToBlob`
+- Mobile sidebar drawer; role gating via `getWhiteboardCapabilities()` — viewers read-only + export
+
+### Liveblocks Yjs co-editing
+
+- Room ID: `whiteboard:page:{whiteboardId}` per active board
+- `@liveblocks/yjs` + `use-excalidraw-yjs` (Y.Map scene keys: elements, appState, files)
+- Postgres debounced snapshots (~800ms); Yjs seeded from DB when room empty after provider sync
+- Email sharing like Notes/Kanban: collaboration panel, editor/viewer roles, pending invite resolution in `lib/sync-user.ts`
+- Pointer presence mapped to Excalidraw collaborators map
+
+### Files
+
+```
+lib/whiteboard/
+  actions.ts, types.ts, room.ts, access.ts, collaboration-actions.ts
+  mappers.ts, permissions.ts, persistence.ts, scene.ts
+  use-whiteboard-list.ts, use-whiteboard-autosave.ts, use-excalidraw-yjs.ts
+  ai-diagram-prompts.ts, sticky-note.ts
+
+components/whiteboard/
+  whiteboard-page-loader.tsx, whiteboard-page.tsx, whiteboard-sidebar.tsx
+  whiteboard-list-item.tsx, whiteboard-header.tsx, whiteboard-canvas.tsx
+  excalidraw-client.tsx, ai-diagram-dialog.tsx, collaboration-panel.tsx
+
+app/(app)/whiteboard/page.tsx
+app/api/whiteboard/ai-generate/route.ts
+```
+
 ## Dark mode (full-site — done)
 
 - **`next-themes`** — `ThemeProvider` with `attribute="class"`, `storageKey="kaizenyard-theme"`, `defaultTheme="system"`, `disableTransitionOnChange` (no page-wide color lag)
@@ -374,7 +418,7 @@ scripts/
 
 ## Not done yet
 
-- Feature internals (whiteboard, pages, templates, assistant)
+- Feature internals (pages, templates, assistant)
 - Real global search
 - Attestation feature implementation (beyond anonymous pulse voting pattern)
 - Clerk Organizations / workspace switcher (when enabled in Clerk dashboard)

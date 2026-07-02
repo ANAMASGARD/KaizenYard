@@ -97,7 +97,11 @@ function NoteEditorInner({
 
   const extensions = useMemo(
     () => [
-      StarterKit.configure({ undoRedo: false }),
+      StarterKit.configure({
+        undoRedo: false,
+        link: false,
+        underline: false,
+      }),
       Placeholder.configure({
         placeholder: "Press / for commands…",
       }),

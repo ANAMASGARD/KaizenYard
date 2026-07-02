@@ -8,7 +8,7 @@ const ROADMAP = [
   { num: "04", title: "Calendar", status: "done" },
   { num: "05", title: "Kanban board", status: "planned" },
   { num: "06", title: "Notes", status: "planned" },
-  { num: "07", title: "Whiteboard", status: "planned" },
+  { num: "07", title: "Whiteboard", status: "done" },
   { num: "08", title: "Spaces & pages", status: "planned" },
   { num: "09", title: "Attestation", status: "planned" },
   { num: "10", title: "AI assistant", status: "planned" },

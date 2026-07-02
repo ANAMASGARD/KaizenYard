@@ -15,6 +15,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { toast } from "sonner";
 import { CalendarToolbar } from "@/components/calendar/calendar-toolbar";
+import { KaizenLoadingScreen } from "@/components/loading/kaizen-loading";
 import { CalendarEventChip } from "@/components/calendar/calendar-event-chip";
 import { CategoryLegend } from "@/components/calendar/category-legend";
 import { DraftPanel } from "@/components/calendar/draft-panel";
@@ -262,11 +263,10 @@ export function CalendarPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] min-h-[32rem] items-center justify-center lg:h-[calc(100vh-2rem)]">
-        <p className="font-head text-sm uppercase tracking-wider text-muted-foreground">
-          Loading calendar…
-        </p>
-      </div>
+      <KaizenLoadingScreen
+        label="Loading calendar"
+        className="h-[calc(100vh-4rem)] min-h-[32rem] lg:h-[calc(100vh-2rem)]"
+      />
     );
   }
 

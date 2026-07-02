@@ -1,0 +1,50 @@
+/* Excalidraw host — fill parent, avoid overlap with Kaizenyard chrome */
+
+.kaizenyard-excalidraw {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--background, #fff);
+}
+
+.kaizenyard-excalidraw .excalidraw {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.kaizenyard-excalidraw .excalidraw .excalidraw-container {
+  height: 100% !important;
+}
+
+.kaizenyard-excalidraw .excalidraw .layer-ui__wrapper {
+  max-height: 100%;
+}
+
+.kaizenyard-excalidraw--fullscreen {
+  display: flex;
+  flex-direction: column;
+  background: var(--background, #fff);
+}
+
+.kaizenyard-excalidraw--fullscreen .kaizenyard-excalidraw {
+  flex: 1;
+  min-height: 0;
+}
+
+.kaizenyard-excalidraw .excalidraw .App-menu_top {
+  top: 0.5rem;
+}
+
+.kaizenyard-excalidraw .excalidraw .layer-ui__wrapper__footer {
+  bottom: 2.75rem;
+}
+
+.kaizenyard-excalidraw--preview .excalidraw .layer-ui__wrapper__footer {
+  bottom: 0.5rem;
+}
+
+#liveblocks-badge {
+  display: none !important;
+}

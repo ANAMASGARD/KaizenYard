@@ -23,8 +23,9 @@ import {
   arrayMove,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { LayoutGrid, Plus, Users, Zap } from "lucide-react";
+import { LayoutGrid, PanelLeft, Plus, Users, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { KaizenLoadingScreen } from "@/components/loading/kaizen-loading";
 import { ActiveCollaborators } from "@/components/kanban/active-collaborators";
 import { AutomationPanel } from "@/components/kanban/automation-panel";
 import { BoardDialog } from "@/components/kanban/board-dialog";
@@ -58,6 +59,8 @@ import {
   parseColumnDropId,
   parseTaskDragId,
 } from "@/lib/kanban/types";
+import { usePersistedSidebarOpen } from "@/lib/use-persisted-sidebar-open";
+import { cn } from "@/lib/utils";
 
 function getColumnTasks(tasks: TaskRecord[], columnId: number): TaskRecord[] {
   return tasks
@@ -277,6 +280,8 @@ function KanbanPageContent() {
   const [collaborationPanelOpen, setCollaborationPanelOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState<BoardRecord | null>(null);
   const [mobileBoardsOpen, setMobileBoardsOpen] = useState(false);
+  const { open: desktopSidebarOpen, setOpen: setDesktopSidebarOpen } =
+    usePersistedSidebarOpen("kaizenyard-kanban-sidebar-open");
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [taskDefaults, setTaskDefaults] = useState<TaskDialogDefaults | null>(
     null,
@@ -599,11 +604,10 @@ function KanbanPageContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[24rem] items-center justify-center">
-        <p className="font-head text-sm uppercase tracking-wider text-muted-foreground">
-          Loading kanban…
-        </p>
-      </div>
+      <KaizenLoadingScreen
+        label="Loading kanban"
+        className="min-h-[24rem]"
+      />
     );
   }
 
@@ -659,17 +663,53 @@ function KanbanPageContent() {
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-          <BoardSidebar
-            boards={boards}
-            activeBoardId={activeBoardId}
-            onSelectBoard={(id) => void selectBoard(id)}
-            onNewBoard={openCreateBoard}
-            onEditBoard={openEditBoard}
-            onBoardDeleted={(id) => void handleBoardDeleted(id)}
-            className="hidden lg:flex"
-          />
+          {desktopSidebarOpen ? (
+            <BoardSidebar
+              boards={boards}
+              activeBoardId={activeBoardId}
+              onSelectBoard={(id) => void selectBoard(id)}
+              onNewBoard={openCreateBoard}
+              onEditBoard={openEditBoard}
+              onBoardDeleted={(id) => void handleBoardDeleted(id)}
+              onCollapse={() => setDesktopSidebarOpen(false)}
+              className="hidden lg:flex"
+            />
+          ) : (
+            <div className="hidden shrink-0 lg:flex">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-full w-9 rounded border-2 border-border p-0 shadow-none"
+                onClick={() => setDesktopSidebarOpen(true)}
+                aria-label="Show board list"
+                title="Show boards"
+              >
+                <PanelLeft className="size-4" />
+              </Button>
+            </div>
+          )}
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded border-2 border-border bg-background p-3 shadow-md sm:p-4">
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded border-2 border-border bg-background p-3 shadow-md sm:p-4">
+            {!desktopSidebarOpen ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="absolute left-3 top-3 z-10 hidden h-7 w-7 p-0 shadow-none lg:flex sm:left-4 sm:top-4"
+                onClick={() => setDesktopSidebarOpen(true)}
+                aria-label="Show board list"
+                title="Show boards"
+              >
+                <PanelLeft className="size-3.5" />
+              </Button>
+            ) : null}
+            <div
+              className={cn(
+                "flex min-h-0 min-w-0 flex-1 flex-col",
+                !desktopSidebarOpen && "pt-10 lg:pt-11",
+              )}
+            >
             {activeBoard && activeBoardId ? (
               <RoomProvider
                 id={kanbanBoardRoomId(activeBoardId)}
@@ -677,11 +717,11 @@ function KanbanPageContent() {
               >
                 <ClientSideSuspense
                   fallback={
-                    <div className="flex min-h-[16rem] items-center justify-center">
-                      <p className="font-head text-sm uppercase tracking-wider text-muted-foreground">
-                        Connecting…
-                      </p>
-                    </div>
+                    <KaizenLoadingScreen
+                      label="Connecting"
+                      fullHeight={false}
+                      className="min-h-[16rem]"
+                    />
                   }
                 >
                   <KanbanLiveBoard
@@ -739,6 +779,7 @@ function KanbanPageContent() {
                 </ClientSideSuspense>
               </RoomProvider>
             ) : null}
+            </div>
           </div>
         </div>
       )}

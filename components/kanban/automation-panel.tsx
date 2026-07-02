@@ -12,6 +12,7 @@ import type { AutomationRecord } from "@/lib/kanban/automation-types";
 import { describeAutomation } from "@/lib/kanban/automation-labels";
 import type { ColumnRecord } from "@/lib/kanban/types";
 import { AutomationRuleDialog } from "@/components/kanban/automation-rule-dialog";
+import { KaizenLoadingInline } from "@/components/loading/kaizen-loading";
 import { Button } from "@/components/retroui/Button";
 import { Dialog } from "@/components/retroui/Dialog";
 import { Switch } from "@/components/retroui/Switch";
@@ -75,7 +76,7 @@ function AutomationListContent({
   }
 
   if (loading) {
-    return <p className="font-sans text-sm text-muted-foreground">Loading…</p>;
+    return <KaizenLoadingInline label="Loading" className="py-8" />;
   }
 
   if (automations.length === 0) {

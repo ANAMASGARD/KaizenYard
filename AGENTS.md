@@ -6,7 +6,7 @@ Read this before changing code.
 
 Privacy-first productivity app. Core differentiator: **anonymous attestation** — verified customers or employees can leave feedback provably from a real group member, without identifying who.
 
-Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+), Kanban (Chapter 5), and Notes (Chapter 6) implemented; other feature routes are skeletons.
+Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+), Kanban (Chapter 5), Notes (Chapter 6), and Whiteboard (Chapter 7) implemented; other feature routes are skeletons.
 
 ## Project
 
@@ -28,7 +28,7 @@ app/
     calendar/page.tsx         full calendar (month/week, DnD, drafts)
     tasks/page.tsx             full kanban (boards, columns, DnD, calendar sync, Liveblocks collaboration)
     notes/page.tsx             full notes (Tiptap editor, STT, TTS, AI refine, Liveblocks Yjs sharing)
-    whiteboard/page.tsx
+    whiteboard/page.tsx         full whiteboard (Excalidraw, AI diagrams, PNG export, Liveblocks Yjs sharing)
     pages/page.tsx
     templates/page.tsx
     settings/[[...rest]]/page.tsx   Clerk UserProfile
@@ -38,15 +38,17 @@ components/
   calendar/                   month/week views, draft panel, DnD, event dialog
   kanban/                     boards sidebar, columns, cards, task dialog, DnD, collaboration, comments
   notes/                      sidebar, Tiptap editor, slash commands, STT, TTS, AI refine, collaboration panel
+  whiteboard/                 sidebar, Excalidraw canvas, AI diagrams, sticky notes, collaboration panel
   brand/logo.tsx              shared SVG logo
   auth-header.tsx             legacy header (unused; keep for future)
   user-sync.tsx               client: sync Clerk user → DB on visit
   retroui/                    UI kit — not components/ui/
 db/                           index.ts, schema.ts
-lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, liveblocks/
-app/api/liveblocks-auth/      Liveblocks room auth (Clerk + board/note role)
+lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, whiteboard/, liveblocks/
+app/api/liveblocks-auth/      Liveblocks room auth (Clerk + board/note/whiteboard role)
 app/api/assemblyai/token/     AssemblyAI temporary streaming token
 app/api/notes/ai-refine/      OpenRouter text refinement for selected note text (qwen/qwen3.5-flash-02-23)
+app/api/whiteboard/ai-generate/ OpenRouter diagram generation for whiteboard (qwen/qwen3.5-flash-02-23)
 proxy.ts                      Clerk middleware — use this, NOT middleware.ts
 migrations/                   Drizzle SQL migrations
 memory/                       session notes for agents (memory.md)
@@ -143,11 +145,11 @@ npm run db:generate | db:migrate | db:check   # schema changes: edit schema → 
 
 ## Env (copy `.env.example` → `.env`, never commit)
 
-`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENROUTER_API_KEY` (server-only for `/api/notes/ai-refine` via OpenRouter; model `qwen/qwen3.5-flash-02-23`). Optional: `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE` for OpenRouter rankings metadata. Do not read or print `.env`.
+`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENROUTER_API_KEY` (server-only for `/api/notes/ai-refine` and `/api/whiteboard/ai-generate` via OpenRouter; model `qwen/qwen3.5-flash-02-23`). Optional: `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE` for OpenRouter rankings metadata. Do not read or print `.env`.
 
 ## Clerk
 
-- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`, `/api/assemblyai/token(.*)`, `/api/notes/ai-refine(.*)`; `await auth.protect()` on match
+- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`, `/api/assemblyai/token(.*)`, `/api/notes/ai-refine(.*)`, `/api/whiteboard/ai-generate(.*)`; `await auth.protect()` on match
 - `ClerkProvider` inside `<body>` in `app/layout.tsx`, `appearance={{ theme: shadcn }}`
 - `await auth()` from `@clerk/nextjs/server` — always async
 - Use `@clerk/nextjs`, not `@clerk/clerk-react`
@@ -174,18 +176,22 @@ await db.select().from(users);
 - Related kanban tables: `kanban_task_pulses`, `kanban_task_pulse_votes`, `kanban_automations`
 - `notes` — per-user note pages (`title`, `color`, `content` jsonb Tiptap JSON, `pinned`, soft-delete `deletedAt`); server actions in `lib/notes/actions.ts`
 - `note_collaborators` — email invites per note (`editor` | `viewer`); pending until invitee signs up; access in `lib/notes/access.ts`, invites in `lib/notes/collaboration-actions.ts`
+- `whiteboards` — per-user whiteboard pages (`title`, `color`, `content` jsonb Excalidraw scene, `pinned`, soft-delete `deletedAt`); server actions in `lib/whiteboard/actions.ts`
+- `whiteboard_collaborators` — email invites per whiteboard (`editor` | `viewer`); pending until invitee signs up; access in `lib/whiteboard/access.ts`, invites in `lib/whiteboard/collaboration-actions.ts`
 
-## Liveblocks (Kanban + Notes collaboration)
+## Liveblocks (Kanban + Notes + Whiteboard collaboration)
 
 - Packages: `@liveblocks/client`, `@liveblocks/react`, `@liveblocks/node`, `@liveblocks/yjs`, `yjs` (same Liveblocks version)
 - **Auth-endpoint mode** — client uses `LiveblocksProvider authEndpoint="/api/liveblocks-auth"`, not `publicApiKey`
 - Kanban room per board: `kanban:board:{boardId}` (`lib/kanban/room.ts` — safe for client imports)
 - Notes room per page: `notes:page:{noteId}` (`lib/notes/room.ts` — safe for client imports)
-- Server access checks: `lib/kanban/access.ts`, `lib/notes/access.ts` — **never import from client components** (pulls in `db`)
-- Types: `lib/liveblocks/config.ts` — `Presence`, `UserMeta`, `ThreadMetadata: { taskId }`, `RoomEvent: board-changed | note-changed`
+- Whiteboard room per page: `whiteboard:page:{whiteboardId}` (`lib/whiteboard/room.ts` — safe for client imports)
+- Server access checks: `lib/kanban/access.ts`, `lib/notes/access.ts`, `lib/whiteboard/access.ts` — **never import from client components** (pulls in `db`)
+- Types: `lib/liveblocks/config.ts` — `Presence` (optional `cursor`), `UserMeta`, `ThreadMetadata: { taskId }`, `RoomEvent: board-changed | note-changed | whiteboard-changed`
 - Kanban: Postgres source of truth; Liveblocks for presence, task comment threads, board-change broadcast sync
 - Notes: Postgres stores metadata + debounced Tiptap JSON snapshots; Liveblocks Yjs for real-time co-editing + presence
-- Reuse room ID pattern later: `calendar:user:{userId}`, `whiteboard:page:{pageId}`, `ai:chat:{sessionId}`, etc.
+- Whiteboard: Postgres stores metadata + debounced Excalidraw scene snapshots; Liveblocks Yjs for real-time co-editing + pointer presence
+- Reuse room ID pattern later: `calendar:user:{userId}`, `ai:chat:{sessionId}`, etc.
 
 ## Notes speech (STT + TTS)
 
@@ -193,6 +199,17 @@ await db.select().from(users);
 - **Browser TTS:** read selection or full note via Web Speech API (`useWebSpeechTts`, `read-aloud.tsx`) — no env var; targets **desktop Chromium + Firefox**. Shared language prefs in `lib/notes/speech-languages.ts` (`kaizenyard-notes-speech-prefs`). Cross-browser helpers: `wait-for-speech-voices.ts` (voiceschanged + timeout), chunked utterances, warmup, `onerror` mapping.
 - **Access:** editors dictate + read; viewers read-only (selection bubble via `note-selection-menu.tsx`). STT start cancels active TTS.
 - **Known limits:** Firefox Android unsupported; Linux Firefox may need speech-dispatcher; empty voices under Firefox RFP — show actionable errors, not silent fail.
+
+## Whiteboard (Chapter 7 — done)
+
+- **Engine:** `@excalidraw/excalidraw` (client-only via `whiteboard-page-loader.tsx` `ssr: false`)
+- **Layout:** two-pane — whiteboard sidebar + Excalidraw canvas with RetroUI neo-brutalist chrome
+- **Persistence:** Postgres `whiteboards.content` jsonb (`elements`, `appState`, `files`); Liveblocks Yjs live sync via `use-excalidraw-yjs.ts`
+- **Collaboration:** email sharing like Notes/Kanban; `whiteboard:page:{id}` rooms; viewer = `viewModeEnabled`
+- **AI Diagram:** `/api/whiteboard/ai-generate` + OpenRouter `qwen/qwen3.5-flash-02-23` — inserts Excalidraw elements from prompt
+- **Export:** PNG via dynamic `exportToBlob` import
+- **Sticky notes:** custom toolbar button inserts rectangle+text preset (`lib/whiteboard/sticky-note.ts`)
+- **Access:** editors draw + AI; viewers read-only + export; owners manage delete/invites
 
 ## Rules
 

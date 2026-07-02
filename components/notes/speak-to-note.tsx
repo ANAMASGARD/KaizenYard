@@ -10,18 +10,24 @@ import {
   type SpeechLanguageId,
 } from "@/lib/notes/speech-languages";
 import { Button } from "@/components/retroui/Button";
+import { KaizenLoadingDots } from "@/components/loading/kaizen-loading";
 import { Select } from "@/components/retroui/Select";
 import { cn } from "@/lib/utils";
 
 type SpeakToNoteProps = {
   enabled?: boolean;
+  compact?: boolean;
   onTranscript: (text: string) => void;
   onStart?: () => void;
   onLanguageChange?: (language: SpeechLanguageId) => void;
 };
 
+const LANGUAGE_HINT =
+  "Auto detects language; pin a language for mixed-content notes.";
+
 export function SpeakToNote({
   enabled = true,
+  compact = false,
   onTranscript,
   onStart,
   onLanguageChange,
@@ -31,7 +37,8 @@ export function SpeakToNote({
     return loadSpeechPrefs().sttLang;
   });
 
-  const { isRecording, preview, error, start, stop } = useAssemblyAIStreaming({
+  const { isRecording, isConnecting, preview, error, start, stop } =
+    useAssemblyAIStreaming({
     enabled,
     language,
     onFinalTranscript: onTranscript,
@@ -46,70 +53,101 @@ export function SpeakToNote({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div
+      className={cn(
+        "flex min-w-0 flex-col",
+        compact ? "gap-1" : "gap-2",
+      )}
+    >
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
         {!isRecording ? (
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="gap-2 border-violet-600 text-violet-700 dark:text-violet-300"
-            disabled={!enabled}
+            className={cn(
+              "shrink-0 gap-1.5 border-violet-600 text-violet-700 shadow-sm hover:translate-y-0 hover:shadow-sm active:translate-y-0 active:shadow-sm dark:text-violet-300",
+              compact ? "h-8 px-2.5 text-xs" : "gap-2",
+            )}
+            disabled={!enabled || isConnecting}
             onClick={() => void start()}
           >
-            <Mic className="size-4" />
-            Speak to Note
+            {isConnecting ? (
+              <KaizenLoadingDots size="sm" aria-label="Connecting" />
+            ) : (
+              <Mic className={cn(compact ? "size-3.5" : "size-4")} />
+            )}
+            {isConnecting
+              ? compact
+                ? "Connecting"
+                : "Connecting…"
+              : compact
+                ? "Dictate"
+                : "Speak to Note"}
           </Button>
         ) : (
           <Button
             type="button"
             variant="default"
             size="sm"
-            className="gap-2"
+            className={cn(
+              "shrink-0 gap-1.5 shadow-sm hover:translate-y-0 hover:shadow-sm active:translate-y-0 active:shadow-sm",
+              compact ? "h-8 px-2.5 text-xs" : "gap-2",
+            )}
             onClick={() => void stop()}
           >
-            <span className="relative flex size-4 items-center justify-center">
+            <span className="relative flex size-3.5 items-center justify-center">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-red-500/60" />
-              <Mic className="relative size-4" />
+              <Mic className="relative size-3.5" />
             </span>
-            Stop Recording
-            <Square className="size-3 fill-current" />
+            {compact ? "Stop" : "Stop Recording"}
+            <Square className="size-2.5 fill-current" />
           </Button>
         )}
 
         <Select
           value={language}
           onValueChange={handleLanguageChange}
-          disabled={isRecording}
+          disabled={isRecording || isConnecting}
         >
-            <Select.Trigger className="h-8 min-w-32 px-2 text-sm shadow-sm">
-              <Select.Value placeholder="Language" />
-            </Select.Trigger>
-            <Select.Content>
-              {SPEECH_LANGUAGE_OPTIONS.map((option) => (
-                <Select.Item key={option.id} value={option.id}>
-                  {option.label}
-                </Select.Item>
-              ))}
-            </Select.Content>
+          <Select.Trigger
+            className={cn(
+              "h-8 shrink-0 px-2 text-xs shadow-sm",
+              compact ? "min-w-22" : "min-w-32 text-sm",
+            )}
+            title={LANGUAGE_HINT}
+            aria-label={`Speech language. ${LANGUAGE_HINT}`}
+          >
+            <Select.Value placeholder="Language" />
+          </Select.Trigger>
+          <Select.Content>
+            {SPEECH_LANGUAGE_OPTIONS.map((option) => (
+              <Select.Item key={option.id} value={option.id}>
+                {option.label}
+              </Select.Item>
+            ))}
+          </Select.Content>
         </Select>
       </div>
 
-      <p className="font-sans text-[11px] text-muted-foreground">
-        Auto detects language; pin a language for mixed-content notes.
-      </p>
+      {!compact ? (
+        <p className="font-sans text-[11px] text-muted-foreground">
+          {LANGUAGE_HINT}
+        </p>
+      ) : null}
 
       {isRecording && preview ? (
         <p
           className={cn(
-            "rounded border-2 border-dashed border-violet-400 bg-violet-50 px-3 py-2 font-sans text-sm text-violet-900 dark:bg-violet-950/40 dark:text-violet-100",
+            "rounded border-2 border-dashed border-violet-400 bg-violet-50 font-sans text-violet-900 dark:bg-violet-950/40 dark:text-violet-100",
+            compact ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm",
           )}
         >
           {preview}
         </p>
       ) : null}
 
-      {isRecording ? (
+      {isRecording && !compact ? (
         <p className="inline-flex items-center gap-1 font-sans text-[11px] text-muted-foreground">
           <Volume2 className="size-3" />
           Stop recording to change language.
@@ -117,7 +155,9 @@ export function SpeakToNote({
       ) : null}
 
       {error ? (
-        <p className="font-sans text-xs text-red-600 dark:text-red-400">{error}</p>
+        <p className="font-sans text-[11px] text-red-600 dark:text-red-400">
+          {error}
+        </p>
       ) : null}
     </div>
   );

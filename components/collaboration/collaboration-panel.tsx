@@ -8,6 +8,7 @@ import type {
   CollaboratorsPanelData,
 } from "@/lib/collaboration/types";
 import { Avatar } from "@/components/retroui/Avatar";
+import { KaizenLoadingInline } from "@/components/loading/kaizen-loading";
 import { Button } from "@/components/retroui/Button";
 import { Dialog } from "@/components/retroui/Dialog";
 import { Input } from "@/components/retroui/Input";
@@ -231,7 +232,7 @@ export function CollaborationPanel({
 
         <div className="flex flex-col gap-4 p-4">
           {loading && !data ? (
-            <p className="font-sans text-sm text-muted-foreground">Loading…</p>
+            <KaizenLoadingInline label="Loading" className="py-6" />
           ) : null}
 
           {data ? (

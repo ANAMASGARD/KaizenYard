@@ -1,5 +1,5 @@
-import { SkeletonPage } from "@/components/dashboard/skeleton-page";
+import { WhiteboardPageLoader } from "@/components/whiteboard/whiteboard-page-loader";
 
-export default function WhiteboardPage() {
-  return <SkeletonPage title="Whiteboard" />;
+export default function Page() {
+  return <WhiteboardPageLoader />;
 }

@@ -2,6 +2,8 @@ import { getBoardRole } from "@/lib/kanban/access";
 import { parseKanbanBoardRoomId } from "@/lib/kanban/room";
 import { getNoteRole } from "@/lib/notes/access";
 import { parseNotePageRoomId } from "@/lib/notes/room";
+import { getWhiteboardRole } from "@/lib/whiteboard/access";
+import { parseWhiteboardPageRoomId } from "@/lib/whiteboard/room";
 
 export type LiveblocksRoomAccess = "viewer" | "editor";
 
@@ -18,6 +20,10 @@ const ROOM_HANDLERS: RoomAuthHandler[] = [
   {
     parse: parseNotePageRoomId,
     getRole: getNoteRole,
+  },
+  {
+    parse: parseWhiteboardPageRoomId,
+    getRole: getWhiteboardRole,
   },
 ];
 

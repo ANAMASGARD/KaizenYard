@@ -3,6 +3,7 @@
 import {
   Copy,
   Palette,
+  PanelLeftClose,
   Pin,
   Plus,
   Search,
@@ -40,6 +41,7 @@ type NotesSidebarProps = {
   onNoteCreated: (note: NoteListItem) => void;
   onNoteDeleted: (noteId: number) => void;
   onCreateNote: () => Promise<NoteListItem>;
+  onCollapse?: () => void;
   className?: string;
 };
 
@@ -54,6 +56,7 @@ export function NotesSidebar({
   onNoteCreated,
   onNoteDeleted,
   onCreateNote,
+  onCollapse,
   className,
 }: NotesSidebarProps) {
   const [trashOpen, setTrashOpen] = useState(false);
@@ -139,16 +142,31 @@ export function NotesSidebar({
         <p className="font-head text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
           Notes
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 px-2 text-xs"
-          onClick={() => void handleNewNote()}
-        >
-          <Plus className="size-3.5" />
-          New
-        </Button>
+        <div className="flex items-center gap-1">
+          {onCollapse ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 w-7 shrink-0 p-0 shadow-none"
+              onClick={onCollapse}
+              aria-label="Collapse notes list"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose className="size-3.5" />
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => void handleNewNote()}
+          >
+            <Plus className="size-3.5" />
+            New
+          </Button>
+        </div>
       </div>
 
       <div className="relative">

@@ -318,3 +318,53 @@ export const noteCollaborators = pgTable(
 export type Note = typeof notes.$inferSelect;
 export type NewNote = typeof notes.$inferInsert;
 export type NoteCollaborator = typeof noteCollaborators.$inferSelect;
+
+export const whiteboards = pgTable(
+  "whiteboards",
+  {
+    id: serial("id").primaryKey(),
+    clerkId: text("clerk_id").notNull(),
+    title: text("title").notNull().default("Untitled"),
+    color: text("color").notNull().default("yellow"),
+    content: jsonb("content")
+      .notNull()
+      .default({ elements: [], appState: {}, files: {} }),
+    pinned: boolean("pinned").default(false).notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("whiteboards_clerk_deleted_idx").on(table.clerkId, table.deletedAt),
+    index("whiteboards_clerk_updated_idx").on(table.clerkId, table.updatedAt),
+  ],
+);
+
+export const whiteboardCollaborators = pgTable(
+  "whiteboard_collaborators",
+  {
+    id: serial("id").primaryKey(),
+    whiteboardId: integer("whiteboard_id")
+      .notNull()
+      .references(() => whiteboards.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    clerkId: text("clerk_id"),
+    role: text("role").notNull().default("editor"),
+    invitedByClerkId: text("invited_by_clerk_id").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("whiteboard_collaborators_board_email_idx").on(
+      table.whiteboardId,
+      table.email,
+    ),
+    index("whiteboard_collaborators_clerk_id_idx").on(table.clerkId),
+  ],
+);
+
+export type Whiteboard = typeof whiteboards.$inferSelect;
+export type NewWhiteboard = typeof whiteboards.$inferInsert;
+export type WhiteboardCollaborator = typeof whiteboardCollaborators.$inferSelect;

@@ -42,38 +42,41 @@ export function ReadAloud({
   }
 
   return (
-    <div className={cn("flex flex-col gap-1", className)}>
-      <div className="flex items-center gap-1">
-        {!isSpeaking ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={cn(
-              "gap-1 border-violet-600 text-violet-700 dark:text-violet-300",
-              compact && "h-7 px-2 text-xs",
-            )}
-            disabled={disabled}
-            onClick={handleSpeak}
-          >
-            <Volume2 className={cn("size-4", compact && "size-3.5")} />
-            {label}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            className={cn("gap-1", compact && "h-7 px-2 text-xs")}
-            onClick={stop}
-          >
-            <Square className={cn("size-3 fill-current", compact && "size-2.5")} />
-            Stop
-          </Button>
-        )}
-      </div>
+    <div className={cn(compact ? "inline-flex" : "flex flex-col gap-1", className)}>
+      {!isSpeaking ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(
+            "gap-1.5 border-violet-600 text-violet-700 shadow-sm hover:translate-y-0 hover:shadow-sm active:translate-y-0 active:shadow-sm dark:text-violet-300",
+            compact ? "h-8 px-2.5 text-xs" : "gap-1",
+          )}
+          disabled={disabled}
+          onClick={handleSpeak}
+        >
+          <Volume2 className={cn(compact ? "size-3.5" : "size-4")} />
+          {label}
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          variant="default"
+          size="sm"
+          className={cn(
+            "gap-1.5 shadow-sm hover:translate-y-0 hover:shadow-sm active:translate-y-0 active:shadow-sm",
+            compact ? "h-8 px-2.5 text-xs" : "gap-1",
+          )}
+          onClick={stop}
+        >
+          <Square
+            className={cn("fill-current", compact ? "size-2.5" : "size-3")}
+          />
+          Stop
+        </Button>
+      )}
 
-      {error ? (
+      {error && !compact ? (
         <p className="font-sans text-[11px] text-red-600 dark:text-red-400">
           {error}
         </p>

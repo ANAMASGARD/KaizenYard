@@ -7,6 +7,7 @@ import { Sparkles } from "lucide-react";
 import { AI_REFINE_ACTIONS, type AiRefineAction } from "@/lib/notes/ai-refine-prompts";
 import { ReadAloud } from "@/components/notes/read-aloud";
 import { Button } from "@/components/retroui/Button";
+import { KaizenLoadingDots } from "@/components/loading/kaizen-loading";
 import { Popover } from "@/components/retroui/Popover";
 import { cn } from "@/lib/utils";
 
@@ -130,8 +131,12 @@ export function NoteBubbleMenu({
               className="h-7 gap-1 px-2 text-xs"
               disabled={refining}
             >
-              <Sparkles className="size-3.5 text-violet-600" />
-              {refining ? "Refining…" : "AI Refine"}
+              {refining ? (
+                <KaizenLoadingDots size="sm" aria-label="Refining" />
+              ) : (
+                <Sparkles className="size-3.5 text-violet-600" />
+              )}
+              {refining ? "Refining" : "AI Refine"}
             </Button>
           }
         />

@@ -39,7 +39,26 @@ function formatStartError(err: unknown): string {
   if (message.includes("token")) {
     return "Failed to get transcription token — check AssemblyAI configuration";
   }
+  if (
+    message.includes("concurrent") ||
+    message.includes("too many") ||
+    message.includes("too many streams")
+  ) {
+    return "Speech session limit reached — stop recording, wait a few seconds, then try again";
+  }
+  if (message.includes("timed out") || message.includes("timeout")) {
+    return "Speech connection timed out — check your network and try again";
+  }
   return err.message;
+}
+
+async function closeTranscriber(transcriber: StreamingTranscriber | null) {
+  if (!transcriber) return;
+  try {
+    await transcriber.close();
+  } catch {
+    // ignore close errors
+  }
 }
 
 export function useAssemblyAIStreaming({
@@ -49,6 +68,7 @@ export function useAssemblyAIStreaming({
   onStart,
 }: UseAssemblyAIStreamingOptions) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [preview, setPreview] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +80,7 @@ export function useAssemblyAIStreaming({
   const onFinalRef = useRef(onFinalTranscript);
   const onStartRef = useRef(onStart);
   const languageRef = useRef(language);
+  const startingRef = useRef(false);
 
   useEffect(() => {
     onFinalRef.current = onFinalTranscript;
@@ -83,29 +104,31 @@ export function useAssemblyAIStreaming({
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
 
-    if (transcriberRef.current) {
-      try {
-        await transcriberRef.current.close();
-      } catch {
-        // ignore close errors
-      }
-      transcriberRef.current = null;
-    }
+    const transcriber = transcriberRef.current;
+    transcriberRef.current = null;
+    await closeTranscriber(transcriber);
 
     setIsRecording(false);
+    setIsConnecting(false);
     setPreview("");
     lastFinalRef.current = "";
   }, []);
 
   const start = useCallback(async () => {
-    if (!enabled || isRecording) return;
+    if (!enabled || isRecording || startingRef.current) return;
 
+    startingRef.current = true;
+    setIsConnecting(true);
     onStartRef.current?.();
     setError(null);
     setPreview("");
     lastFinalRef.current = "";
 
+    let transcriber: StreamingTranscriber | null = null;
+
     try {
+      await cleanup();
+
       const tokenRes = await fetch("/api/assemblyai/token", { method: "POST" });
       if (!tokenRes.ok) {
         const body = (await tokenRes.json().catch(() => null)) as {
@@ -116,10 +139,12 @@ export function useAssemblyAIStreaming({
       const { token } = (await tokenRes.json()) as { token: string };
 
       const sttConfig = getSttConfigForLanguage(languageRef.current);
-      const transcriber = new StreamingTranscriber({
+      transcriber = new StreamingTranscriber({
         token,
         sampleRate: 16_000,
         formatTurns: true,
+        connectTimeout: 10_000,
+        maxConnectionRetries: 0,
         ...sttConfig,
       });
 
@@ -143,7 +168,14 @@ export function useAssemblyAIStreaming({
         void cleanup();
       });
 
-      await transcriber.connect();
+      try {
+        await transcriber.connect();
+      } catch (connectErr) {
+        await closeTranscriber(transcriber);
+        transcriber = null;
+        throw connectErr;
+      }
+
       transcriberRef.current = transcriber;
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -157,9 +189,11 @@ export function useAssemblyAIStreaming({
       processorRef.current = processor;
 
       processor.onaudioprocess = (event) => {
+        const active = transcriberRef.current;
+        if (!active) return;
         const pcm = event.inputBuffer.getChannelData(0);
         const int16 = float32ToInt16(pcm);
-        transcriber.sendAudio(int16.buffer);
+        active.sendAudio(int16.buffer);
       };
 
       source.connect(processor);
@@ -167,8 +201,14 @@ export function useAssemblyAIStreaming({
 
       setIsRecording(true);
     } catch (err) {
+      if (transcriber && transcriberRef.current !== transcriber) {
+        await closeTranscriber(transcriber);
+      }
       setError(formatStartError(err));
       await cleanup();
+    } finally {
+      startingRef.current = false;
+      setIsConnecting(false);
     }
   }, [cleanup, enabled, isRecording]);
 
@@ -184,6 +224,7 @@ export function useAssemblyAIStreaming({
 
   return {
     isRecording,
+    isConnecting,
     preview,
     error,
     start,

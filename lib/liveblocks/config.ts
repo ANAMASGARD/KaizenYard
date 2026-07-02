@@ -1,6 +1,8 @@
 declare global {
   interface Liveblocks {
-    Presence: Record<string, never>;
+    Presence: {
+      cursor?: { x: number; y: number } | null;
+    };
     UserMeta: {
       id: string;
       info: {
@@ -12,7 +14,10 @@ declare global {
     ThreadMetadata: {
       taskId: number;
     };
-    RoomEvent: { type: "board-changed" } | { type: "note-changed" };
+    RoomEvent:
+      | { type: "board-changed" }
+      | { type: "note-changed" }
+      | { type: "whiteboard-changed" };
   }
 }
 

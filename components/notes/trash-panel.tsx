@@ -11,6 +11,7 @@ import {
 import type { NoteListItem } from "@/lib/notes/types";
 import { noteRecordToListItem } from "@/lib/notes/mappers";
 import { Button } from "@/components/retroui/Button";
+import { KaizenLoadingInline } from "@/components/loading/kaizen-loading";
 import { NoteListItemRow } from "@/components/notes/note-list-item";
 import { cn } from "@/lib/utils";
 
@@ -96,9 +97,7 @@ export function TrashPanel({
       </div>
 
       {loading ? (
-        <p className="px-2 py-2 font-sans text-xs text-muted-foreground">
-          Loading…
-        </p>
+        <KaizenLoadingInline className="px-2 py-4" />
       ) : items.length === 0 ? (
         <p className="px-2 py-2 font-sans text-xs text-muted-foreground">
           Trash is empty.

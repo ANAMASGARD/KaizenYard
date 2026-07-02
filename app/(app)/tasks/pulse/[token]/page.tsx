@@ -8,6 +8,7 @@ import {
 } from "@/lib/kanban/pulse-actions";
 import type { TaskPulseRecord, TaskPulseVoteType } from "@/lib/kanban/pulse-types";
 import { voteLabel } from "@/components/kanban/task-pulse-panel";
+import { KaizenLoadingScreen } from "@/components/loading/kaizen-loading";
 import { Button } from "@/components/retroui/Button";
 import { Card } from "@/components/retroui/Card";
 import { Textarea } from "@/components/retroui/Textarea";
@@ -42,7 +43,11 @@ export default function TaskPulseVotePage() {
 
   if (loading) {
     return (
-      <p className="font-head text-sm text-muted-foreground">Loading check-in…</p>
+      <KaizenLoadingScreen
+        label="Loading check-in"
+        fullHeight={false}
+        className="min-h-[12rem]"
+      />
     );
   }
 
