@@ -18,10 +18,27 @@ export type NavItem = {
   iconClassName: string;
 };
 
+export type GeneratedNavItem = {
+  href: string;
+  label: string;
+  iconName: string;
+  color: string;
+};
+
 export type NavGroup = {
   label: string;
   items: NavItem[];
 };
+
+export const GENERATED_APPS_GROUP_LABEL = "AI Generated Apps";
+
+export function generatedAppHref(appId: number): string {
+  return `/templates/app/${appId}`;
+}
+
+export function isGeneratedAppPathname(pathname: string): boolean {
+  return /^\/templates\/app\/\d+/.test(pathname);
+}
 
 export const DASHBOARD_NAV_GROUPS: NavGroup[] = [
   {
@@ -104,7 +121,22 @@ export const DASHBOARD_NAV_ITEMS: NavItem[] = DASHBOARD_NAV_GROUPS.flatMap(
   (group) => group.items,
 );
 
-export function getNavItemByPathname(pathname: string): NavItem | undefined {
+export function getNavItemByPathname(
+  pathname: string,
+  generatedApps?: GeneratedNavItem[],
+): NavItem | undefined {
+  if (isGeneratedAppPathname(pathname) && generatedApps) {
+    const match = generatedApps.find((app) => app.href === pathname);
+    if (match) {
+      return {
+        href: match.href,
+        label: match.label,
+        icon: LayoutTemplate,
+        iconClassName: "",
+      };
+    }
+  }
+
   return DASHBOARD_NAV_ITEMS.find((item) => {
     if (item.href === "/dashboard") {
       return pathname === "/dashboard";

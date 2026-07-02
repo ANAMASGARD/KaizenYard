@@ -14,9 +14,14 @@ const isProtectedRoute = createRouteMatcher([
   "/api/assemblyai/token(.*)",
   "/api/notes/ai-refine(.*)",
   "/api/whiteboard/ai-generate(.*)",
+  "/api/templates/ai-generate(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  if (req.nextUrl.pathname.startsWith("/templates/share/")) {
+    return;
+  }
+
   if (isProtectedRoute(req)) {
     await auth.protect();
   }

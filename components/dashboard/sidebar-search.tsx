@@ -5,9 +5,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import {
   DASHBOARD_NAV_GROUPS,
+  GENERATED_APPS_GROUP_LABEL,
+  type GeneratedNavItem,
   type NavItem,
 } from "@/components/dashboard/nav-config";
 import { useSidebar } from "@/components/dashboard/sidebar-context";
+import { TemplateIcon } from "@/components/templates/template-icon";
 import { Button } from "@/components/retroui/Button";
 import { Command } from "@/components/retroui/Command";
 import { collapsedRailButton } from "@/components/dashboard/sidebar-rail";
@@ -33,10 +36,34 @@ function NavCommandItem({
   );
 }
 
+function GeneratedCommandItem({
+  item,
+  onSelect,
+}: {
+  item: GeneratedNavItem;
+  onSelect: (href: string) => void;
+}) {
+  return (
+    <Command.Item
+      value={`${item.label} ${item.href}`}
+      onSelect={() => onSelect(item.href)}
+    >
+      <TemplateIcon
+        name={item.iconName}
+        className="size-4"
+        style={{ color: item.color }}
+      />
+      <span>{item.label}</span>
+    </Command.Item>
+  );
+}
+
 export function SidebarSearch({
   forceExpanded = false,
+  generatedApps = [],
 }: {
   forceExpanded?: boolean;
+  generatedApps?: GeneratedNavItem[];
 }) {
   const router = useRouter();
   const { collapsed } = useSidebar();
@@ -110,6 +137,17 @@ export function SidebarSearch({
               ))}
             </Command.Group>
           ))}
+          {generatedApps.length > 0 ? (
+            <Command.Group heading={GENERATED_APPS_GROUP_LABEL}>
+              {generatedApps.map((item) => (
+                <GeneratedCommandItem
+                  key={item.href}
+                  item={item}
+                  onSelect={navigate}
+                />
+              ))}
+            </Command.Group>
+          ) : null}
         </Command.List>
       </Command.Dialog>
     </>

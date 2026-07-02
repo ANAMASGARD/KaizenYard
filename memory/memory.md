@@ -8,7 +8,7 @@ Last updated: 2026-07-02
 - Flagship roadmap feature: **anonymous attestation** — feedback provably from a verified group member, without revealing identity
 - **Shipped Web3 feature:** **ZK Secure Vaults** in Pages & Spaces — Groth16 (bls12381) unlock proofs + Soroban `vault_verifier` on testnet via **Freighter** and **`@stellar/stellar-sdk`**
 - Planned roadmap chapters: setup → auth → dashboard → calendar → kanban → notes → whiteboard → spaces → attestation → AI assistant
-- **Chapters 4–8 implemented** (calendar, kanban, notes, whiteboard, pages/spaces + vaults); landing roadmap grid may lag
+- **Chapters 4–9 implemented** (calendar, kanban, notes, whiteboard, pages/spaces + vaults, AI template builder); landing roadmap grid may lag
 
 ## Agent skills (`.agents/skills/`)
 
@@ -95,7 +95,7 @@ Replaced placeholder home with a full neo-brutalist marketing site:
 
 - Route group `app/(app)/` with `DashboardShell` layout
 - **Protected routes** in `proxy.ts`: `/dashboard`, `/assistant`, `/calendar`, `/tasks`, `/notes`, `/whiteboard`, `/pages`, `/templates`, `/settings`
-- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar**, **Tasks/Kanban**, **Notes**, and **Whiteboard** — full features)
+- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar**, **Tasks/Kanban**, **Notes**, **Whiteboard**, **Pages & Spaces**, and **AI Template Builder** — full features)
 - **Settings** — full Clerk `UserProfile` at `/settings` (catch-all `[[...rest]]`)
 - **Theme toggle** — mobile top bar right; desktop fixed `top-5 right-5`
 
@@ -493,6 +493,7 @@ lib/
   use-persisted-sidebar-open.ts  localStorage sidebar open state (notes/kanban/whiteboard)
   sync-user.ts            Clerk → users upsert + pending board/note/whiteboard/space invite resolution
   pages/                  spaces, pages, files, vault session, Stellar contract helpers
+  templates/              AI template builder CRUD, runtime state, sidebar pins, OpenRouter prompt
   stellar/                Stellar SDK config + Soroban invoke helpers
   vault/                  ZK commitment, snarkjs prover, unlock session
   format-db-error.ts      readable DB errors
@@ -567,9 +568,108 @@ scripts/build-vault-zk.sh
 app/(app)/pages/...
 ```
 
+## AI Template Builder (Chapter 9 — v2 done)
+
+### Data
+
+- `generated_apps` — per-user AI mini apps: `definition` jsonb, `runtimeState` jsonb, `sidebarPinned`, `sidebarOrder` (max 3 pins), public share fields, and ZK share commitment metadata
+- `generated_app_collaborators` — email collaborators for generated apps (`editor` | `viewer`) with pending invite resolution on sign-in
+
+Migrations: `20260702080737_ambiguous_hobgoblin`, `20260702095220_chilly_carnage`
+
+### Features
+
+- **`/templates`** — prompt (500 chars), suggestion chips, Vercel AI SDK structured generation, inline preview, Created Apps cards, sharing controls
+- **`/templates/app/[appId]`** — dynamic renderer with persisted runtime (checklists, forms, progress) and share dialog
+- **`/templates/share/[token]`** — public shared app route with optional ZK passphrase gate
+- **Sidebar pins** — up to 3 apps under **AI Generated Apps** group + ⌘K search
+- **Blocks:** stats, list, table, form, progress, checklist, tags, chart placeholder, text with responsive section layouts and runtime-backed action buttons
+- **Sharing:** public link mode, collaborator invites, copy-link UX, middleware exception for share route
+- **ZK share:** `circuits/app_share/app_share.circom`, `contracts/app_share_verifier/`, `lib/templates/zk-share/*`, Freighter-backed share commitment registration and protected unlock flow
+
+### Compact build summary
+
+- Implemented Template Builder v2 in-app: RetroUI layout polish, structured AI generation, public sharing, collaborator sharing, and Stellar/ZK share scaffolding.
+- Switched template generation to Vercel AI SDK with OpenRouter provider and schema-validated object output.
+- Added generated app share schema (`shareToken`, `shareEnabled`, `shareMode`, ZK metadata) plus `generated_app_collaborators`.
+- Added public route `app/templates/share/[token]/page.tsx`, share dialog UX, and middleware exception for public links.
+- Added initial Stellar app-share pieces: `circuits/app_share/app_share.circom`, `contracts/app_share_verifier/`, `lib/templates/zk-share/*`.
+- Verified local app changes with `npm run build`, lint on touched files, `npm run db:generate`, and `npm run db:migrate`.
+
+### Web3 deployment status
+
+- No Stellar deployment commands have been run yet for the new app-share flow.
+- `contracts/app_share_verifier/` is present locally only.
+- `NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID` is not ready until we deploy later.
+- ZK share is scaffolded in code, but production-like end-to-end testing still depends on contract deployment plus `public/zk/app-share/` artifacts.
+
+### Deploy later: Stellar commands
+
+Current app config uses public Stellar testnet infrastructure and Freighter. There is **no Stellar API key required** for the default public testnet RPC/Horizon/Friendbot endpoints already referenced by the app. If we later switch to a paid RPC provider, get that provider-specific key from that provider's dashboard and replace the RPC URL env var; Stellar itself does not issue a universal API key for testnet access.
+
+Suggested later flow:
+
+```bash
+# 1) Install the Stellar CLI if missing
+brew install stellar-cli
+# or see: https://developers.stellar.org/docs/tools/cli
+
+# 2) Build the contract
+cd contracts/app_share_verifier
+cargo build --target wasm32v1-none --release
+
+# 3) Add an identity for testnet
+stellar keys generate kaizenyard-app-share --network testnet
+
+# 4) Fund the identity on testnet
+stellar keys fund kaizenyard-app-share --network testnet
+
+# 5) Deploy the contract
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/app_share_verifier.wasm \
+  --source kaizenyard-app-share \
+  --network testnet
+
+# 6) Save returned contract id into env
+NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID=<returned_contract_id>
+```
+
+Optional local invocation checks after deploy:
+
+```bash
+stellar contract invoke \
+  --id "$NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID" \
+  --source kaizenyard-app-share \
+  --network testnet \
+  -- register_share_app \
+  --owner <G...PUBLIC_KEY> \
+  --app_id 1 \
+  --commitment <hex_32_bytes>
+```
+
+### ZK artifact reminder
+
+Before full ZK share testing later:
+
+```bash
+# add or run an app-share build script later
+circom circuits/app_share/app_share.circom --r1cs --wasm --sym -o public/zk/app-share -p bls12381
+```
+
+### Files
+
+```
+lib/templates/actions.ts, types.ts, schema.ts, ai-prompt.ts, mappers.ts
+lib/templates/access.ts, collaboration-actions.ts, zk-share/*
+lib/templates/use-generated-apps.ts, use-pinned-sidebar-apps.ts, use-app-runtime.ts
+components/templates/template-builder-view.tsx, generated-app-view.tsx, shared-app-view.tsx, share-app-dialog.tsx, dynamic-app-renderer.tsx
+app/api/templates/ai-generate/route.ts
+app/(app)/templates/..., app/templates/share/[token]/page.tsx
+```
+
 ## Not done yet
 
-- Feature internals (**templates**, **assistant** routes — still skeletons)
+- Feature internals (**assistant** route — still skeleton)
 - Real global search (dashboard command palette is nav-only)
 - Attestation feature implementation (beyond anonymous pulse voting pattern)
 - Clerk Organizations / workspace switcher (when enabled in Clerk dashboard)

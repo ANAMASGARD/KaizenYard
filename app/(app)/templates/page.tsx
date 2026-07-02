@@ -1,5 +1,5 @@
-import { SkeletonPage } from "@/components/dashboard/skeleton-page";
+import { TemplateBuilderView } from "@/components/templates/template-builder-view";
 
 export default function TemplatesPage() {
-  return <SkeletonPage title="AI Template Builder" />;
+  return <TemplateBuilderView />;
 }

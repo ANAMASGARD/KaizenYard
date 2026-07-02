@@ -1,8 +1,13 @@
 "use client";
 
 import { AppSidebar, SidebarPanel } from "@/components/dashboard/app-sidebar";
-import { getNavItemByPathname } from "@/components/dashboard/nav-config";
+import {
+  generatedAppHref,
+  getNavItemByPathname,
+  type GeneratedNavItem,
+} from "@/components/dashboard/nav-config";
 import { SidebarProvider, useSidebar } from "@/components/dashboard/sidebar-context";
+import { usePinnedSidebarApps } from "@/lib/templates/use-pinned-sidebar-apps";
 import { Drawer } from "@/components/retroui/Drawer";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
@@ -10,10 +15,25 @@ import { usePathname } from "next/navigation";
 import { NeoHamburgerButton } from "@/components/dashboard/neo-hamburger-button";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
-function MobileTopBar() {
+function toGeneratedNavItems(
+  apps: ReturnType<typeof usePinnedSidebarApps>["apps"],
+): GeneratedNavItem[] {
+  return apps.map((app) => ({
+    href: generatedAppHref(app.id),
+    label: app.appName,
+    iconName: app.icon,
+    color: app.color,
+  }));
+}
+
+function MobileTopBar({
+  generatedApps,
+}: {
+  generatedApps: GeneratedNavItem[];
+}) {
   const pathname = usePathname();
   const { setMobileOpen } = useSidebar();
-  const current = getNavItemByPathname(pathname);
+  const current = getNavItemByPathname(pathname, generatedApps);
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b-2 border-border bg-background px-4 lg:hidden">
@@ -26,7 +46,11 @@ function MobileTopBar() {
   );
 }
 
-function MobileSidebarDrawer() {
+function MobileSidebarDrawer({
+  generatedApps,
+}: {
+  generatedApps: GeneratedNavItem[];
+}) {
   const { mobileOpen, setMobileOpen } = useSidebar();
 
   return (
@@ -36,6 +60,7 @@ function MobileSidebarDrawer() {
           className="h-full w-full border-r-0"
           forceExpanded
           onNavigate={() => setMobileOpen(false)}
+          generatedApps={generatedApps}
         />
       </Drawer.Content>
     </Drawer>
@@ -43,13 +68,16 @@ function MobileSidebarDrawer() {
 }
 
 function DashboardShellInner({ children }: { children: React.ReactNode }) {
+  const { apps } = usePinnedSidebarApps();
+  const generatedApps = toGeneratedNavItems(apps);
+
   return (
     <div className="flex min-h-screen bg-background">
-      <AppSidebar />
-      <MobileSidebarDrawer />
+      <AppSidebar generatedApps={generatedApps} />
+      <MobileSidebarDrawer generatedApps={generatedApps} />
       <ThemeToggle className="fixed top-5 right-5 z-50 hidden lg:inline-flex" />
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <MobileTopBar />
+        <MobileTopBar generatedApps={generatedApps} />
         <main className={cn("flex-1 overflow-auto p-4 sm:p-6 lg:p-8")}>
           {children}
         </main>

@@ -9,7 +9,7 @@ Privacy-first **Web3 productivity app** on Stellar. Core differentiators:
 1. **Anonymous attestation** (roadmap) — verified group members can leave feedback without revealing identity
 2. **ZK Secure Vaults** (Chapter 8, shipped) — Pages & Spaces folders gated by zero-knowledge unlock proofs verified on Soroban testnet via Freighter
 
-Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+), Kanban (Chapter 5), Notes (Chapter 6), Whiteboard (Chapter 7), and **Pages & Spaces + Secure Vaults** (Chapter 8) implemented; templates and assistant routes are skeletons.
+Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+), Kanban (Chapter 5), Notes (Chapter 6), Whiteboard (Chapter 7), **Pages & Spaces + Secure Vaults** (Chapter 8), and **AI Template Builder v2** (Chapter 9: AI SDK + sharing + ZK share) implemented; assistant route is still a skeleton.
 
 **Web3 angle:** Kaizenyard is not a generic SaaS todo app — wallet-connected vault unlock, on-chain nullifier anti-replay, and Circom Groth16 (bls12381) proofs are first-class product features built on **Stellar smart contracts** and **`@stellar/stellar-sdk`**.
 
@@ -52,7 +52,8 @@ app/
     notes/page.tsx             full notes (Tiptap editor, STT, TTS, AI refine, Liveblocks Yjs sharing)
     whiteboard/page.tsx         full whiteboard (Excalidraw, AI diagrams, PNG export, Liveblocks Yjs sharing)
     pages/page.tsx              full pages & spaces (grid, vaults, Tiptap editor, Liveblocks Yjs)
-    templates/page.tsx
+    templates/page.tsx              AI template builder (prompt → JSON mini apps)
+    templates/app/[appId]/page.tsx  generated app runner
     settings/[[...rest]]/page.tsx   Clerk UserProfile
 components/
   landing/                    marketing page sections
@@ -62,12 +63,13 @@ components/
   notes/                      sidebar, Tiptap editor, slash commands, STT, TTS, AI refine, collaboration panel
   whiteboard/                 sidebar, Excalidraw canvas, AI diagrams, sticky notes, collaboration panel
   pages/                      all-spaces grid, space detail, page editor, vault unlock, collaboration panel
+  templates/                  AI template builder, dynamic app renderer, generated app cards
   brand/logo.tsx              shared SVG logo
   auth-header.tsx             legacy header (unused; keep for future)
   user-sync.tsx               client: sync Clerk user → DB on visit
   retroui/                    UI kit — not components/ui/
 db/                           index.ts, schema.ts
-lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, whiteboard/, pages/, stellar/, vault/, liveblocks/
+lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, whiteboard/, pages/, templates/, stellar/, vault/, liveblocks/
 hooks/                        use-freighter.ts (Stellar Freighter wallet)
 contracts/vault_verifier/     Soroban ZK vault policy contract (Rust)
 circuits/vault_unlock/        Circom Groth16 circuit (bls12381)
@@ -75,6 +77,7 @@ app/api/liveblocks-auth/      Liveblocks room auth (Clerk + board/note/whiteboar
 app/api/assemblyai/token/     AssemblyAI temporary streaming token
 app/api/notes/ai-refine/      OpenRouter text refinement for selected note text (qwen/qwen3.5-flash-02-23)
 app/api/whiteboard/ai-generate/ OpenRouter diagram generation for whiteboard (qwen/qwen3.5-flash-02-23)
+app/api/templates/ai-generate/  OpenRouter JSON mini-app generation for AI Template Builder
 proxy.ts                      Clerk middleware — use this, NOT middleware.ts
 migrations/                   Drizzle SQL migrations
 memory/                       session notes for agents (memory.md)
@@ -134,7 +137,7 @@ Composed in `components/landing/landing-page.tsx`:
 
 - Wrapped in `DashboardShell` — sidebar + main content
 - All routes protected in `proxy.ts` via `auth.protect()`
-- Pages are **skeletons only** unless user asks for feature internals (calendar, tasks/kanban, and notes are implemented)
+- Pages are **skeletons only** for `/assistant` unless user asks for feature internals (calendar, tasks/kanban, notes, whiteboard, pages, templates are implemented)
 - Settings uses Clerk `<UserProfile routing="path" path="/settings" />` in `settings-profile.tsx`
 - **Do not** add `<OrganizationSwitcher />` until Clerk Organizations is enabled in the Clerk dashboard
 
@@ -203,11 +206,11 @@ npm run db:generate | db:migrate | db:check   # schema changes: edit schema → 
 
 ## Env (copy `.env.example` → `.env`, never commit)
 
-`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENROUTER_API_KEY` (server-only for `/api/notes/ai-refine` and `/api/whiteboard/ai-generate` via OpenRouter; model `qwen/qwen3.5-flash-02-23`). Optional: `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE` for OpenRouter rankings metadata. **Pages Secure Vaults:** `NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` (deploy `contracts/vault_verifier` to testnet). Do not read or print `.env`.
+`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENROUTER_API_KEY` (server-only for `/api/notes/ai-refine`, `/api/whiteboard/ai-generate`, and `/api/templates/ai-generate` via OpenRouter model `qwen/qwen3.5-flash-02-23` and Vercel AI SDK). Optional: `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE` for OpenRouter rankings metadata. **Pages Secure Vaults:** `NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` (deploy `contracts/vault_verifier` to testnet). **Template ZK share:** `NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID`. Do not read or print `.env`.
 
 ## Clerk
 
-- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`, `/api/assemblyai/token(.*)`, `/api/notes/ai-refine(.*)`, `/api/whiteboard/ai-generate(.*)`; `await auth.protect()` on match
+- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`, `/api/assemblyai/token(.*)`, `/api/notes/ai-refine(.*)`, `/api/whiteboard/ai-generate(.*)`, `/api/templates/ai-generate(.*)`; `await auth.protect()` on match
 - `ClerkProvider` inside `<body>` in `app/layout.tsx`, `appearance={{ theme: shadcn }}`
 - `await auth()` from `@clerk/nextjs/server` — always async
 - Use `@clerk/nextjs`, not `@clerk/clerk-react`
@@ -237,6 +240,8 @@ await db.select().from(users);
 - `whiteboards` — per-user whiteboard pages (`title`, `color`, `content` jsonb Excalidraw scene, `pinned`, soft-delete `deletedAt`); server actions in `lib/whiteboard/actions.ts`
 - `whiteboard_collaborators` — email invites per whiteboard (`editor` | `viewer`); pending until invitee signs up; access in `lib/whiteboard/access.ts`, invites in `lib/whiteboard/collaboration-actions.ts`
 - `spaces`, `pages`, `space_collaborators`, `space_files` — folder-style Pages & Spaces; vault fields on `spaces`; file attachments (base64 in Postgres, 5 MB limit v1); server actions in `lib/pages/actions.ts`, `lib/pages/file-actions.ts`
+- `generated_apps` — per-user AI-generated mini apps (`definition` jsonb, `runtimeState` jsonb, sidebar pin fields, `shareToken`, `shareEnabled`, `shareMode`, and ZK share commitment fields); server actions in `lib/templates/actions.ts`
+- `generated_app_collaborators` — email sharing for generated apps (`editor` | `viewer`); pending until invitee signs up; access in `lib/templates/access.ts`, invites in `lib/templates/collaboration-actions.ts`
 
 ## Liveblocks (Kanban + Notes + Whiteboard + Pages collaboration)
 
@@ -310,6 +315,70 @@ components/pages/all-spaces-view.tsx, space-detail-view.tsx, page-editor-view.ts
 components/pages/space-card.tsx, space-actions-menu.tsx, page-actions-menu.tsx
 components/pages/new-page-dialog.tsx, upload-file-button.tsx, vault-unlock-dialog.tsx
 ```
+
+## AI Template Builder (Chapter 9 — v2 done)
+
+Prompt-to-JSON mini apps saved per user with persisted runtime state, optional sidebar pins (max 3), public link sharing, collaborator invites, and optional Stellar-backed ZK-gated share flows.
+
+### UX
+
+- **`/templates`** — prompt input (500 chars), suggestion chips, Vercel AI SDK generation, inline preview, Created Apps grid (Preview, Share, Add/Remove Sidebar, Delete)
+- **`/templates/app/[appId]`** — full-page dynamic renderer with debounced runtime autosave + share dialog
+- **`/templates/share/[token]`** — public shared app route with optional ZK passphrase gate
+- **Sidebar** — pinned apps appear under **AI Generated Apps** + ⌘K search
+
+### Data
+
+- `generated_apps` — `definition` jsonb (sections, actions, sampleData), `runtimeState` jsonb, `sidebarPinned`, `sidebarOrder`, share flags/token, ZK share commitment data
+- `generated_app_collaborators` — email invites + accepted collaborator access
+
+### Dynamic renderer blocks
+
+Stats, list, table, form, progress, checklist, tags, chart placeholder, text — RetroUI neo-brutalism with responsive section layouts (`full` / `half` / `third`) and interactive action handlers.
+
+### Key files
+
+```
+lib/templates/actions.ts, types.ts, schema.ts, ai-prompt.ts, mappers.ts
+lib/templates/access.ts, collaboration-actions.ts, zk-share/*
+lib/templates/use-generated-apps.ts, use-pinned-sidebar-apps.ts, use-app-runtime.ts
+components/templates/template-builder-view.tsx, generated-app-view.tsx, shared-app-view.tsx, share-app-dialog.tsx, dynamic-app-renderer.tsx
+app/api/templates/ai-generate/route.ts
+app/(app)/templates/..., app/templates/share/[token]/page.tsx
+```
+
+**Note:** `lib/pages/templates.ts` is unrelated (Tiptap starter content for Pages & Spaces).
+
+### Deployment status note
+
+- Template Builder v2 sharing + ZK share code is implemented locally.
+- We have **not yet run Stellar deployment commands** for `contracts/app_share_verifier/`.
+- We have **not yet deployed** the app-share contract to Stellar testnet.
+- We have **not yet produced/finalized** `public/zk/app-share/` artifacts for full ZK share verification.
+- `NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID` should stay unset until deployment is completed later.
+
+### Later deploy checklist
+
+```bash
+# build soroban contract
+cd contracts/app_share_verifier
+cargo build --target wasm32v1-none --release
+
+# create/fund testnet identity
+stellar keys generate kaizenyard-app-share --network testnet
+stellar keys fund kaizenyard-app-share --network testnet
+
+# deploy and copy returned contract id
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/app_share_verifier.wasm \
+  --source kaizenyard-app-share \
+  --network testnet
+```
+
+### Stellar API key note
+
+- Kaizenyard currently relies on public Stellar testnet RPC/Horizon/Friendbot endpoints and **does not require a Stellar API key** for that default setup.
+- If we later switch to a third-party RPC provider, use that provider's dashboard/API credentials and update `NEXT_PUBLIC_SOROBAN_RPC_URL`.
 
 ## Rules
 

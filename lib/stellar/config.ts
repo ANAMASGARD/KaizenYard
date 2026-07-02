@@ -30,6 +30,10 @@ export function getVaultVerifierContractId(): string | null {
   return process.env.NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID ?? null;
 }
 
+export function getAppShareVerifierContractId(): string | null {
+  return process.env.NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID ?? null;
+}
+
 export function txExplorerUrl(hash: string): string {
   const { explorerBase } = getStellarConfig();
   return `${explorerBase}/tx/${hash}`;

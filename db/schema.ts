@@ -467,6 +467,57 @@ export const spaceFiles = pgTable(
   ],
 );
 
+export const generatedApps = pgTable(
+  "generated_apps",
+  {
+    id: serial("id").primaryKey(),
+    clerkId: text("clerk_id").notNull(),
+    appName: text("app_name").notNull(),
+    description: text("description").notNull().default(""),
+    icon: text("icon").notNull().default("LayoutTemplate"),
+    color: text("color").notNull().default("#F97316"),
+    layout: text("layout").notNull().default("single-page"),
+    definition: jsonb("definition").notNull(),
+    runtimeState: jsonb("runtime_state").notNull().default({}),
+    sidebarPinned: boolean("sidebar_pinned").notNull().default(false),
+    sidebarOrder: integer("sidebar_order"),
+    shareToken: text("share_token").unique(),
+    shareEnabled: boolean("share_enabled").notNull().default(false),
+    shareMode: text("share_mode").notNull().default("private"),
+    isZkShare: boolean("is_zk_share").notNull().default(false),
+    shareCommitment: text("share_commitment"),
+    shareSalt: text("share_salt"),
+    shareNullifierRoot: text("share_nullifier_root"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("generated_apps_clerk_idx").on(table.clerkId),
+    index("generated_apps_clerk_pinned_idx").on(table.clerkId, table.sidebarPinned),
+  ],
+);
+
+export const generatedAppCollaborators = pgTable(
+  "generated_app_collaborators",
+  {
+    id: serial("id").primaryKey(),
+    appId: integer("app_id")
+      .notNull()
+      .references(() => generatedApps.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    clerkId: text("clerk_id"),
+    role: text("role").notNull(),
+    invitedByClerkId: text("invited_by_clerk_id").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("generated_app_collaborators_app_email_idx").on(table.appId, table.email),
+    index("generated_app_collaborators_clerk_idx").on(table.clerkId),
+  ],
+);
+
 export type Space = typeof spaces.$inferSelect;
 export type NewSpace = typeof spaces.$inferInsert;
 export type SpaceCollaborator = typeof spaceCollaborators.$inferSelect;
@@ -474,3 +525,9 @@ export type Page = typeof pages.$inferSelect;
 export type NewPage = typeof pages.$inferInsert;
 export type SpaceFile = typeof spaceFiles.$inferSelect;
 export type NewSpaceFile = typeof spaceFiles.$inferInsert;
+export type GeneratedApp = typeof generatedApps.$inferSelect;
+export type NewGeneratedApp = typeof generatedApps.$inferInsert;
+export type GeneratedAppCollaborator =
+  typeof generatedAppCollaborators.$inferSelect;
+export type NewGeneratedAppCollaborator =
+  typeof generatedAppCollaborators.$inferInsert;
