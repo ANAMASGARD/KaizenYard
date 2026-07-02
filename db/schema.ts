@@ -89,6 +89,8 @@ export const calendarMeetingPulses = pgTable(
     }),
     question: text("question").notNull(),
     shareToken: text("share_token").notNull().unique(),
+    pulseType: text("pulse_type").notNull().default("meeting"),
+    witnessGroupId: integer("witness_group_id"),
     isOpen: boolean("is_open").default(true).notNull(),
     closesAt: timestamp("closes_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -173,6 +175,8 @@ export const kanbanTasks = pgTable(
     calendarItemId: integer("calendar_item_id").references(() => calendarItems.id, {
       onDelete: "set null",
     }),
+    witnessAttestationHash: text("witness_attestation_hash"),
+    delegateAddress: text("delegate_address"),
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -611,3 +615,126 @@ export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
 export type UserCategory = typeof userCategories.$inferSelect;
 export type NewUserCategory = typeof userCategories.$inferInsert;
+
+export const assistantSessions = pgTable(
+  "assistant_sessions",
+  {
+    id: serial("id").primaryKey(),
+    clerkId: text("clerk_id").notNull(),
+    title: text("title").notNull().default("New chat"),
+    privacyMode: text("privacy_mode").notNull().default("standard"),
+    agentSessionId: text("agent_session_id").notNull().unique(),
+    delegateAddress: text("delegate_address"),
+    witnessGroupId: integer("witness_group_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    llmViewSnapshot: text("llm_view_snapshot"),
+    llmViewUpdatedAt: timestamp("llm_view_updated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("assistant_sessions_clerk_updated_idx").on(table.clerkId, table.lastMessageAt),
+    index("assistant_sessions_agent_session_idx").on(table.agentSessionId),
+  ],
+);
+
+export const assistantMessages = pgTable(
+  "assistant_messages",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => assistantSessions.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    parts: jsonb("parts").notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("assistant_messages_session_idx").on(table.sessionId, table.createdAt)],
+);
+
+export const assistantPrivacyMaps = pgTable(
+  "assistant_privacy_maps",
+  {
+    id: serial("id").primaryKey(),
+    agentSessionId: text("agent_session_id").notNull(),
+    clerkId: text("clerk_id").notNull(),
+    encryptedMap: text("encrypted_map").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("assistant_privacy_maps_agent_session_idx").on(table.agentSessionId),
+    index("assistant_privacy_maps_expires_idx").on(table.expiresAt),
+  ],
+);
+
+export const witnessGroups = pgTable(
+  "witness_groups",
+  {
+    id: serial("id").primaryKey(),
+    ownerClerkId: text("owner_clerk_id").notNull(),
+    name: text("name").notNull(),
+    commitment: text("commitment"),
+    merkleRoot: text("merkle_root"),
+    boardId: integer("board_id").references(() => kanbanBoards.id, { onDelete: "set null" }),
+    calendarPulseId: integer("calendar_pulse_id").references(() => calendarMeetingPulses.id, {
+      onDelete: "set null",
+    }),
+    boardPulseId: integer("board_pulse_id"),
+    isOpen: boolean("is_open").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("witness_groups_owner_idx").on(table.ownerClerkId)],
+);
+
+export const witnessAttestations = pgTable(
+  "witness_attestations",
+  {
+    id: serial("id").primaryKey(),
+    witnessGroupId: integer("witness_group_id")
+      .notNull()
+      .references(() => witnessGroups.id, { onDelete: "cascade" }),
+    clerkId: text("clerk_id").notNull(),
+    nullifier: text("nullifier").notNull(),
+    actionHash: text("action_hash").notNull(),
+    resourceType: text("resource_type").notNull(),
+    resourceId: integer("resource_id"),
+    txHash: text("tx_hash"),
+    privacyMode: text("privacy_mode").notNull().default("witness"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("witness_attestations_nullifier_idx").on(table.nullifier),
+    index("witness_attestations_group_idx").on(table.witnessGroupId),
+  ],
+);
+
+export const kanbanBoardPulses = pgTable(
+  "kanban_board_pulses",
+  {
+    id: serial("id").primaryKey(),
+    boardId: integer("board_id")
+      .notNull()
+      .references(() => kanbanBoards.id, { onDelete: "cascade" }),
+    ownerClerkId: text("owner_clerk_id").notNull(),
+    question: text("question").notNull(),
+    pulseType: text("pulse_type").notNull().default("retro"),
+    shareToken: text("share_token").notNull().unique(),
+    witnessGroupId: integer("witness_group_id").references(() => witnessGroups.id, {
+      onDelete: "set null",
+    }),
+    isOpen: boolean("is_open").default(true).notNull(),
+    closesAt: timestamp("closes_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("kanban_board_pulses_board_idx").on(table.boardId)],
+);
+
+export type AssistantSession = typeof assistantSessions.$inferSelect;
+export type NewAssistantSession = typeof assistantSessions.$inferInsert;
+export type AssistantMessage = typeof assistantMessages.$inferSelect;
+export type AssistantPrivacyMap = typeof assistantPrivacyMaps.$inferSelect;
+export type WitnessGroup = typeof witnessGroups.$inferSelect;
+export type WitnessAttestation = typeof witnessAttestations.$inferSelect;
+export type KanbanBoardPulse = typeof kanbanBoardPulses.$inferSelect;

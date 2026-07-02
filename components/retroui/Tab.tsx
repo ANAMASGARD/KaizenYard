@@ -1,13 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Tabs as BaseTabs } from "@base-ui/react/tabs";
 
-const Tabs = BaseTabs.Root;
-const TabsPanels = ({ children, className, ...props }: React.ComponentProps<"div">) => (
-  <div className={className} {...props}>
-    {children}
-  </div>
-);
-
 interface ITabsTriggerList extends React.ComponentProps<typeof BaseTabs.List> {
   className?: string;
 }

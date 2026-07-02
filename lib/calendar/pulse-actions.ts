@@ -9,6 +9,7 @@ import {
   calendarPulseVotes,
   db,
 } from "@/db";
+import { createRetroMeetingPulse as createRetroMeetingPulseCore } from "@/lib/witness/retro-pulse";
 import type {
   MeetingPulseRecord,
   PulseTally,
@@ -84,12 +85,21 @@ export async function createMeetingPulse(
     calendarItemId: pulse.calendarItemId,
     question: pulse.question,
     shareToken: pulse.shareToken,
+    pulseType: pulse.pulseType,
+    witnessGroupId: pulse.witnessGroupId,
     isOpen: pulse.isOpen,
     closesAt: pulse.closesAt ? pulse.closesAt.toISOString() : null,
     tally: { keep: 0, drop: 0, unsure: 0, total: 0 },
     hasVoted: false,
     userVote: null,
   };
+}
+
+export async function createRetroMeetingPulse(
+  calendarItemId: number,
+  question?: string,
+): Promise<MeetingPulseRecord> {
+  return createRetroMeetingPulseCore(calendarItemId, question);
 }
 
 export async function getPulseByToken(
@@ -124,6 +134,8 @@ export async function getPulseByToken(
     calendarItemId: pulse.calendarItemId,
     question: pulse.question,
     shareToken: pulse.shareToken,
+    pulseType: pulse.pulseType,
+    witnessGroupId: pulse.witnessGroupId,
     isOpen: pulse.isOpen,
     closesAt: pulse.closesAt ? pulse.closesAt.toISOString() : null,
     tally: showTally ? tally : { keep: 0, drop: 0, unsure: 0, total: 0 },
@@ -156,6 +168,8 @@ export async function getPulseForItem(
     calendarItemId: pulse.calendarItemId,
     question: pulse.question,
     shareToken: pulse.shareToken,
+    pulseType: pulse.pulseType,
+    witnessGroupId: pulse.witnessGroupId,
     isOpen: pulse.isOpen,
     closesAt: pulse.closesAt ? pulse.closesAt.toISOString() : null,
     tally,

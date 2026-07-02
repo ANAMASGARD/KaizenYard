@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ClientSideSuspense,
   LiveblocksProvider,
@@ -51,13 +51,6 @@ function NotesPageContent() {
     setActiveNote(note);
     return note;
   }, []);
-
-  useEffect(() => {
-    if (loading || activeNoteId !== null || notes.length === 0) return;
-    const firstId = notes[0].id;
-    setActiveNoteId(firstId);
-    void loadActiveNote(firstId);
-  }, [activeNoteId, loadActiveNote, loading, notes]);
 
   async function selectNote(noteId: number) {
     setActiveNoteId(noteId);

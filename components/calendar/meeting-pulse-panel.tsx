@@ -27,7 +27,11 @@ export function MeetingPulsePanel({
 
   useEffect(() => {
     if (hasRecurrence) {
-      void getPulseForItem(calendarItemId).then(setPulse);
+      void getPulseForItem(calendarItemId).then((p) => {
+        if (p?.pulseType !== "retro") {
+          setPulse(p);
+        }
+      });
     }
   }, [calendarItemId, hasRecurrence]);
 
@@ -75,12 +79,9 @@ export function MeetingPulsePanel({
 
   return (
     <div className="space-y-2 rounded border-2 border-border bg-muted/30 p-3">
-      <p className="font-head text-xs uppercase tracking-wide">
-        Anonymous meeting pulse
-      </p>
+      <p className="font-head text-xs uppercase tracking-wide">Anonymous meeting pulse</p>
       <p className="font-sans text-[11px] text-muted-foreground">
-        Let teammates vote anonymously on whether this recurring meeting is still
-        worth keeping.
+        Let teammates vote anonymously on whether this recurring meeting is still worth keeping.
       </p>
 
       {!pulse ? (
@@ -94,9 +95,7 @@ export function MeetingPulsePanel({
             <div className="flex gap-2 font-sans text-xs">
               <span className="text-emerald-700">Keep: {pulse.tally.keep}</span>
               <span className="text-red-700">Drop: {pulse.tally.drop}</span>
-              <span className="text-muted-foreground">
-                Unsure: {pulse.tally.unsure}
-              </span>
+              <span className="text-muted-foreground">Unsure: {pulse.tally.unsure}</span>
             </div>
           )}
           <div className="flex gap-1">

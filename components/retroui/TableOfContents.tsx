@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from '@/lib/utils';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 interface TOCItem {
     title: string;
@@ -125,23 +125,24 @@ export function TableOfContents({
     children,
     data,
 }: TableOfContentsProps) {
-    const [tocItems, setTocItems] = useState<TOCItem[]>([]);
+    const manualItems = useMemo(
+        () => (data ? convertManualDataToTOC(data) : null),
+        [data],
+    );
+    const [domItems, setDomItems] = useState<TOCItem[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
+    const tocItems = manualItems ?? domItems;
 
     useEffect(() => {
-        if (data) {
-            const items = convertManualDataToTOC(data);
-            setTocItems(items);
-            return;
-        }
+        if (data) return;
 
-        const items = generateTOCFromDOM(depth);
-        setTocItems(items);
+        const updateItems = () => {
+            setDomItems(generateTOCFromDOM(depth));
+        };
 
-        const observer = new MutationObserver(() => {
-            const updatedItems = generateTOCFromDOM(depth);
-            setTocItems(updatedItems);
-        });
+        updateItems();
+
+        const observer = new MutationObserver(updateItems);
 
         observer.observe(document.body, {
             childList: true,

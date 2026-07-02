@@ -35,8 +35,8 @@ async function requireValidCategory(
   category: string,
   itemType: string,
 ): Promise<void> {
-  const module: CategoryModule = itemType === "reminder" ? "reminder" : "calendar";
-  const valid = await isValidCategoryKey(module, category);
+  const categoryModule: CategoryModule = itemType === "reminder" ? "reminder" : "calendar";
+  const valid = await isValidCategoryKey(categoryModule, category);
   if (!valid) {
     throw new Error("Invalid category");
   }

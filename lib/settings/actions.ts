@@ -3,7 +3,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { eq, sql } from "drizzle-orm";
 import { db, userSettings } from "@/db";
-import { DEFAULT_USER_SETTINGS } from "@/lib/settings/defaults";
 import type {
   AiBehavior,
   AiFeatures,

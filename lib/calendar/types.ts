@@ -83,11 +83,14 @@ export type MeetingPulseRecord = {
   calendarItemId: number | null;
   question: string;
   shareToken: string;
+  pulseType?: string;
+  witnessGroupId?: number | null;
   isOpen: boolean;
   closesAt: string | null;
   tally: PulseTally;
   hasVoted: boolean;
   userVote: PulseVoteType | null;
+  sharePath?: string;
 };
 
 export const DRAFT_DROP_ID = "draft-panel-drop";

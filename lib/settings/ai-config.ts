@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { db, userSettings } from "@/db";
 import { DEFAULT_USER_SETTINGS } from "@/lib/settings/defaults";
-import type { AiBehavior, AiFeatures, AiTone, UserSettingsRecord } from "@/lib/settings/types";
+import type { AiBehavior, AiFeatures, AiTone } from "@/lib/settings/types";
 
 export type AiFeatureKey = keyof AiFeatures;
 
@@ -93,7 +93,8 @@ export type AiRouteFeature =
   | "templates"
   | "notesAi"
   | "tasksAi"
-  | "summarization";
+  | "summarization"
+  | "assistant";
 
 export function assertAiFeatureEnabled(
   config: ResolvedAiConfig,

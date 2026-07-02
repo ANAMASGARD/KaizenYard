@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { createElement, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -53,7 +53,7 @@ function SortableCategoryRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: category.id });
   const meta = categoryToMeta(category);
-  const Icon = getCategoryIcon(category.icon);
+  const iconName = category.icon;
 
   return (
     <div
@@ -81,7 +81,7 @@ function SortableCategoryRow({
           meta.textClass,
         )}
       >
-        <Icon className="size-4" />
+        {createElement(getCategoryIcon(iconName), { className: "size-4" })}
       </span>
       <div className="min-w-0 flex-1">
         <p className="font-head text-sm">{category.name}</p>

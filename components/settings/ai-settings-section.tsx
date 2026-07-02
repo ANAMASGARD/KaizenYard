@@ -12,7 +12,7 @@ import type { AiBehavior, AiFeatures, AiTone } from "@/lib/settings/types";
 
 const FEATURE_LABELS: { key: keyof AiFeatures; label: string; description: string }[] = [
   { key: "refine", label: "AI Refine", description: "Improve selected text in notes." },
-  { key: "assistant", label: "AI Assistant", description: "Chat assistant (when available)." },
+  { key: "assistant", label: "AI Assistant", description: "Kaizen Witness — privacy proxy agent with tool calling." },
   { key: "templates", label: "AI Template Builder", description: "Generate mini apps from prompts." },
   { key: "autoSuggestions", label: "AI Auto Suggestions", description: "Inline suggestions while typing." },
   { key: "summarization", label: "Smart Summarization", description: "Summaries and whiteboard diagrams." },

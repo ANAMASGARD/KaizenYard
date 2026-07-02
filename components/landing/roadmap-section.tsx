@@ -10,8 +10,9 @@ const ROADMAP = [
   { num: "06", title: "Notes", status: "done" },
   { num: "07", title: "Whiteboard", status: "done" },
   { num: "08", title: "Spaces & pages", status: "done" },
-  { num: "09", title: "Attestation", status: "next" },
-  { num: "10", title: "AI assistant", status: "planned" },
+  { num: "09", title: "AI templates", status: "done" },
+  { num: "10", title: "Attestation + Witness", status: "next" },
+  { num: "11", title: "Kaizen Witness AI", status: "next" },
 ] as const;
 
 function statusStyles(status: (typeof ROADMAP)[number]["status"]) {
@@ -20,8 +21,6 @@ function statusStyles(status: (typeof ROADMAP)[number]["status"]) {
       return "bg-foreground text-background";
     case "next":
       return "bg-primary text-primary-foreground border-2 border-border";
-    case "planned":
-      return "bg-muted text-muted-foreground";
     default: {
       const _exhaustive: never = status;
       return _exhaustive;

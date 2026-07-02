@@ -2,6 +2,7 @@ export const STELLAR_NETWORK = process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "testn
 
 const CONFIG = {
   testnet: {
+    networkLabel: "Testnet",
     horizonUrl: "https://horizon-testnet.stellar.org",
     rpcUrl:
       process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ??
@@ -11,6 +12,7 @@ const CONFIG = {
     explorerBase: "https://stellar.expert/explorer/testnet",
   },
   mainnet: {
+    networkLabel: "Mainnet",
     horizonUrl: "https://horizon.stellar.org",
     rpcUrl: process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "",
     networkPassphrase: "Public Global Stellar Network ; September 2015",
@@ -32,6 +34,10 @@ export function getVaultVerifierContractId(): string | null {
 
 export function getAppShareVerifierContractId(): string | null {
   return process.env.NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID ?? null;
+}
+
+export function getAgentWitnessVerifierContractId(): string | null {
+  return process.env.NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID ?? null;
 }
 
 export function txExplorerUrl(hash: string): string {

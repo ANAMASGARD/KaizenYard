@@ -11,12 +11,12 @@ const STEPS = [
   {
     step: "02",
     title: "Submit blind feedback",
-    body: "Share honest input on products, culture, or processes. Your message is stripped of identifying metadata.",
+    body: "Open Kaizen Witness in retro mode — AI clarifies feedback while OpenRouter sees tokenized context only.",
   },
   {
     step: "03",
     title: "Attest without exposing",
-    body: "Cryptographic attestation proves the feedback came from a real group member. Recipients see truth, not names.",
+    body: "Soroban nullifier attestations prove feedback came from a verified member. Recipients see truth, not names.",
   },
 ] as const;
 
@@ -37,12 +37,12 @@ export function AttestationSection() {
               Flagship feature
             </Badge>
             <Text as="h2" className="mb-4">
-              Anonymous feedback, provably real
+              Kaizen Witness — anonymous feedback, provably real
             </Text>
             <p className="font-sans text-foreground/80">
               Most feedback tools force a choice: honest or anonymous. Kaizenyard
-              gives you both — verified attestation that preserves individual
-              privacy.
+              gives you both — verified attestation via our Privacy Proxy Agent
+              and Stellar nullifiers that preserve individual privacy.
             </p>
           </div>
           <Card className="w-full max-w-sm border-2 border-border bg-background p-6 shadow-lg lg:w-auto">

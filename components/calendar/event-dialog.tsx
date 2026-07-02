@@ -35,6 +35,7 @@ import type {
 } from "@/lib/calendar/types";
 import { CategorySwatchPicker } from "@/components/calendar/category-swatch-picker";
 import { MeetingPulsePanel } from "@/components/calendar/meeting-pulse-panel";
+import { CalendarWitnessRetroPanel } from "@/components/calendar/witness-retro-panel";
 import { ScopePrompt } from "@/components/calendar/scope-prompt";
 import { Button } from "@/components/retroui/Button";
 import { Dialog } from "@/components/retroui/Dialog";
@@ -534,10 +535,15 @@ function EventDialogForm({
         </label>
 
         {editing && (
-          <MeetingPulsePanel
-            calendarItemId={editing.id}
-            hasRecurrence={Boolean(editing.recurrenceRule)}
-          />
+          <>
+            <MeetingPulsePanel
+              calendarItemId={editing.id}
+              hasRecurrence={Boolean(editing.recurrenceRule)}
+            />
+            {Boolean(editing.recurrenceRule) ? (
+              <CalendarWitnessRetroPanel calendarItemId={editing.id} />
+            ) : null}
+          </>
         )}
 
         {error && (

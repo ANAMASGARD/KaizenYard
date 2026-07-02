@@ -13,7 +13,7 @@ import {
   sanitizeAppStateForPersistence,
   type WhiteboardScene,
 } from "@/lib/whiteboard/scene";
-import { safeUpdateScene, whenExcalidrawReady } from "@/lib/whiteboard/excalidraw-mount";
+import { whenExcalidrawReady } from "@/lib/whiteboard/excalidraw-mount";
 
 const YJS_KEYS = {
   elements: "elements",

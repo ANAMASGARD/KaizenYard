@@ -22,8 +22,21 @@ export function useUserCategories(module: CategoryModule) {
   }, [module]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await listUserCategories(module);
+        if (cancelled) return;
+        setCategories(rows);
+        setMetaByKey(metaRecordFromCategories(rows));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [module]);
 
   return { categories, metaByKey, loading, refresh };
 }

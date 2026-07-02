@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ColorSwatchPicker } from "@/components/kanban/color-swatch-picker";
 import { Button } from "@/components/retroui/Button";
 import { Dialog } from "@/components/retroui/Dialog";
@@ -29,26 +29,28 @@ export function CategoryDialog({
   const [icon, setIcon] = useState("tag");
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    setName(initial?.name ?? "");
-    setColor((initial?.color as KanbanColor) ?? "blue");
-    setIcon(initial?.icon ?? "tag");
-  }, [open, initial]);
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setName(initial?.name ?? "");
+      setColor((initial?.color as KanbanColor) ?? "blue");
+      setIcon(initial?.icon ?? "tag");
+    }
+    onOpenChange(next);
+  }
 
   async function handleSubmit() {
     if (!name.trim()) return;
     setPending(true);
     try {
       await onSubmit({ name: name.trim(), color, icon });
-      onOpenChange(false);
+      handleOpenChange(false);
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <Dialog.Content className="max-w-md">
         <Dialog.Header asChild>
           <h2 className="font-head text-lg">
@@ -95,7 +97,7 @@ export function CategoryDialog({
           </div>
         </div>
         <Dialog.Footer className="gap-2 p-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button type="button" disabled={pending || !name.trim()} onClick={() => void handleSubmit()}>

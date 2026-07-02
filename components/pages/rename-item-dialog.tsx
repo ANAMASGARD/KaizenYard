@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/retroui/Button";
 import { Dialog } from "@/components/retroui/Dialog";
 import { Input } from "@/components/retroui/Input";
@@ -26,11 +26,13 @@ export function RenameItemDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setName(initialName);
-    setError(null);
-  }, [open, initialName]);
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setName(initialName);
+      setError(null);
+    }
+    onOpenChange(next);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +40,7 @@ export function RenameItemDialog({
     setError(null);
     try {
       await onSubmit(name.trim());
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Rename failed");
     } finally {
@@ -47,7 +49,7 @@ export function RenameItemDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <Dialog.Content className="sm:max-w-md">
         <Dialog.Header asChild>
           <h2 className="font-head text-lg">{title}</h2>
@@ -70,7 +72,7 @@ export function RenameItemDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={submitting}
             >
               Cancel

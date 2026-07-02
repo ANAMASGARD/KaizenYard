@@ -96,9 +96,12 @@ function WhiteboardCanvasInner({
 
   useEffect(() => {
     mountedRef.current = true;
-    setExcalidrawInteractive(false);
-    setFullscreenMode("none");
-    setLastEdited(whiteboard.updatedAt);
+    queueMicrotask(() => {
+      if (!mountedRef.current) return;
+      setExcalidrawInteractive(false);
+      setFullscreenMode("none");
+      setLastEdited(whiteboard.updatedAt);
+    });
     return () => {
       mountedRef.current = false;
     };
@@ -120,9 +123,8 @@ function WhiteboardCanvasInner({
   }, [exitFullscreen, isFullscreen]);
 
   useEffect(() => {
-    if (!isFullscreen && fullscreenMode !== "none") {
-      setFullscreenMode("none");
-    }
+    if (isFullscreen || fullscreenMode === "none") return;
+    queueMicrotask(() => setFullscreenMode("none"));
   }, [fullscreenMode, isFullscreen]);
 
   const { canEdit } = getWhiteboardCapabilities(whiteboard.role);

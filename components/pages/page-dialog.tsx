@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { PageTemplate } from "@/lib/pages/types";
 import { PAGE_TEMPLATE_LABELS } from "@/lib/pages/mappers";
 import { Button } from "@/components/retroui/Button";
@@ -34,12 +34,14 @@ export function PageDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setTitle("");
-    setTemplate("blank");
-    setError(null);
-  }, [open]);
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setTitle("");
+      setTemplate("blank");
+      setError(null);
+    }
+    onOpenChange(next);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,7 +49,7 @@ export function PageDialog({
     setError(null);
     try {
       await onSubmit({ title: title.trim() || "Untitled", template });
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create page");
     } finally {
@@ -56,7 +58,7 @@ export function PageDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <Dialog.Content className="sm:max-w-md">
         <Dialog.Header asChild>
           <h2 className="font-head text-lg">Create New Page</h2>
@@ -103,7 +105,7 @@ export function PageDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={submitting}
             >
               Cancel

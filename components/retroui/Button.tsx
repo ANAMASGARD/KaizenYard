@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { cva, VariantProps } from "class-variance-authority";
-import React, { ButtonHTMLAttributes } from "react";
+import React from "react";
 import { Button as BaseButton } from "@base-ui/react/button";
 
 export const buttonVariants = cva(
@@ -32,9 +32,9 @@ export const buttonVariants = cva(
 );
 
 export interface IButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
+  extends Omit<React.ComponentProps<typeof BaseButton>, "className">,
     VariantProps<typeof buttonVariants> {
-  render?: React.ReactElement | ((props: Record<string, any>) => React.ReactElement);
+  className?: string;
 }
 
 export const Button = ({
@@ -42,7 +42,6 @@ export const Button = ({
   size = "md",
   className = "",
   variant = "default",
-  render,
   ref,
   ...props
 }: IButtonProps & { ref?: React.Ref<HTMLButtonElement> }) => {
@@ -50,7 +49,6 @@ export const Button = ({
     <BaseButton
       ref={ref}
       className={cn(buttonVariants({ variant, size }), className)}
-      render={render}
       {...props}
     >
       {children}

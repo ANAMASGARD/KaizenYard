@@ -112,8 +112,43 @@ export function SpaceDetailView({ spaceId }: SpaceDetailViewProps) {
   }, [spaceId]);
 
   useEffect(() => {
-    void load().finally(() => setLoading(false));
-  }, [load]);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setLoading(true);
+    });
+    void (async () => {
+      const [spaceData, spaceOptions] = await Promise.all([
+        getSpace(spaceId),
+        listSpaces({ filter: "all" }),
+      ]);
+      if (cancelled) return;
+      setAllSpaces(spaceOptions);
+      if (!spaceData) {
+        setSpace(null);
+        setPages([]);
+        setFiles([]);
+        setLoading(false);
+        return;
+      }
+      const locked = spaceData.isVault && !isVaultUnlocked(spaceId);
+      setVaultLocked(locked);
+      setSpace(spaceData);
+      if (spaceData.isVault && locked) {
+        setVaultOpen(true);
+      }
+      const [pageItems, fileItems] = await Promise.all([
+        listPagesInSpace(spaceId, { vaultLocked: locked }),
+        locked ? Promise.resolve([]) : listFilesInSpace(spaceId),
+      ]);
+      if (cancelled) return;
+      setPages(pageItems);
+      setFiles(fileItems);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [spaceId]);
 
   const items = useMemo<SpaceContentItem[]>(() => {
     const pageItems: SpaceContentItem[] = pages.map((page) => ({

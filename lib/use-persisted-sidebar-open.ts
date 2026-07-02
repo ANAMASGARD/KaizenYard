@@ -1,20 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+
+function readStoredSidebarOpen(storageKey: string, defaultOpen: boolean): boolean {
+  if (typeof window === "undefined") {
+    return defaultOpen;
+  }
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (stored !== null) {
+      return stored === "true";
+    }
+  } catch {
+    // localStorage unavailable
+  }
+  return defaultOpen;
+}
 
 export function usePersistedSidebarOpen(storageKey: string, defaultOpen = true) {
-  const [open, setOpenState] = useState(defaultOpen);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored !== null) {
-        setOpenState(stored === "true");
-      }
-    } catch {
-      // localStorage unavailable
-    }
-  }, [storageKey]);
+  const [open, setOpenState] = useState(() => readStoredSidebarOpen(storageKey, defaultOpen));
 
   const setOpen = useCallback(
     (value: boolean) => {

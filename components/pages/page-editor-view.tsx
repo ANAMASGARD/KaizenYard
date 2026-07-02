@@ -55,8 +55,36 @@ function PageEditorContent({ spaceId, pageId }: PageEditorViewProps) {
   }, [spaceId, pageId]);
 
   useEffect(() => {
-    void load().finally(() => setLoading(false));
-  }, [load]);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setLoading(true);
+    });
+    void (async () => {
+      const spaceData = await getSpace(spaceId);
+      if (cancelled) return;
+      if (!spaceData) {
+        setSpace(null);
+        setPage(null);
+        setLoading(false);
+        return;
+      }
+      const locked = spaceData.isVault && !isVaultUnlocked(spaceId);
+      setSpace(spaceData);
+      if (locked) {
+        setVaultOpen(true);
+        setPage(null);
+        setLoading(false);
+        return;
+      }
+      const pageData = await getPage(pageId);
+      if (cancelled) return;
+      setPage(pageData);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [spaceId, pageId]);
 
   if (loading) {
     return <KaizenLoadingScreen label="Loading page…" />;

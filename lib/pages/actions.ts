@@ -12,7 +12,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { db, pages, spaceCollaborators, spaces } from "@/db";
-import { isKanbanColor, type KanbanColor } from "@/lib/kanban/colors";
+import { isKanbanColor } from "@/lib/kanban/colors";
 import {
   getPageRole,
   getSpaceRole,

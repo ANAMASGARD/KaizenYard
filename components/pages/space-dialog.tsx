@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Lock } from "lucide-react";
 import type { KanbanColor } from "@/lib/kanban/colors";
 import type { SpaceRecord } from "@/lib/pages/types";
@@ -42,16 +42,18 @@ export function SpaceDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setName(initial?.name ?? "");
-    setDescription(initial?.description ?? "");
-    setColor(initial?.color ?? "yellow");
-    setIsVault(initial?.isVault ?? false);
-    setPassphrase("");
-    setConfirmPassphrase("");
-    setError(null);
-  }, [open, initial]);
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setName(initial?.name ?? "");
+      setDescription(initial?.description ?? "");
+      setColor(initial?.color ?? "yellow");
+      setIsVault(initial?.isVault ?? false);
+      setPassphrase("");
+      setConfirmPassphrase("");
+      setError(null);
+    }
+    onOpenChange(next);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -97,7 +99,7 @@ export function SpaceDialog({
         vaultCommitment,
         vaultSalt,
       });
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save space");
     } finally {
@@ -106,7 +108,7 @@ export function SpaceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <Dialog.Content className="sm:max-w-md">
         <Dialog.Header asChild>
           <h2 className="font-head text-lg">
@@ -203,7 +205,7 @@ export function SpaceDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={submitting}
             >
               Cancel

@@ -15,8 +15,6 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import * as Y from "yjs";
 import {
-  duplicatePage,
-  softDeletePage,
   togglePageFavorite,
 } from "@/lib/pages/actions";
 import { createSlashCommandExtension } from "@/lib/notes/slash-command";
@@ -83,7 +81,7 @@ function PageEditorInner({
   } = useWebSpeechTts({ languageId: ttsLanguage });
 
   useEffect(() => {
-    setTtsLanguage(loadSpeechPrefs().ttsLang);
+    queueMicrotask(() => setTtsLanguage(loadSpeechPrefs().ttsLang));
   }, []);
 
   const slashExtension = useMemo(

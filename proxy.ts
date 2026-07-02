@@ -15,6 +15,10 @@ const isProtectedRoute = createRouteMatcher([
   "/api/notes/ai-refine(.*)",
   "/api/whiteboard/ai-generate(.*)",
   "/api/templates/ai-generate(.*)",
+  "/api/assistant/chat(.*)",
+  "/api/assistant/privacy/llm-view(.*)",
+  "/api/assistant/witness/register-group(.*)",
+  "/api/assistant/witness/build-anchor(.*)",
   "/api/settings/export(.*)",
 ]);
 

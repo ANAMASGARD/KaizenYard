@@ -91,7 +91,7 @@ export function useNoteAutosave({
 
   useEffect(() => {
     pendingRef.current = null;
-    setStatus("saved");
+    queueMicrotask(() => setStatus("saved"));
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;

@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { KaizenLoadingScreen } from "@/components/loading/kaizen-loading";
 import { ActiveCollaborators } from "@/components/kanban/active-collaborators";
 import { AutomationPanel } from "@/components/kanban/automation-panel";
+import { WitnessRetroPanel } from "@/components/kanban/witness-retro-panel";
 import { BoardDialog } from "@/components/kanban/board-dialog";
 import { BoardSidebar } from "@/components/kanban/board-sidebar";
 import { CollaborationPanel } from "@/components/kanban/collaboration-panel";
@@ -792,12 +793,17 @@ function KanbanPageContent() {
       />
 
       {activeBoardId ? (
-        <AutomationPanel
-          open={automationPanelOpen}
-          onOpenChange={setAutomationPanelOpen}
-          boardId={activeBoardId}
-          columns={columns}
-        />
+        <>
+          <AutomationPanel
+            open={automationPanelOpen}
+            onOpenChange={setAutomationPanelOpen}
+            boardId={activeBoardId}
+            columns={columns}
+          />
+          <div className="fixed bottom-4 right-4 z-20 hidden max-w-xs lg:block">
+            <WitnessRetroPanel boardId={activeBoardId} />
+          </div>
+        </>
       ) : null}
     </div>
   );

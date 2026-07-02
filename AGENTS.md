@@ -9,7 +9,7 @@ Privacy-first **Web3 productivity app** on Stellar. Core differentiators:
 1. **Anonymous attestation** (roadmap) — verified group members can leave feedback without revealing identity
 2. **ZK Secure Vaults** (Chapter 8, shipped) — Pages & Spaces folders gated by zero-knowledge unlock proofs verified on Soroban testnet via Freighter
 
-Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+), Kanban (Chapter 5), Notes (Chapter 6), Whiteboard (Chapter 7), **Pages & Spaces + Secure Vaults** (Chapter 8), and **AI Template Builder v2** (Chapter 9: AI SDK + sharing + ZK share) implemented; assistant route is still a skeleton.
+Early stage: auth + marketing landing + dashboard shell + DB user sync. Calendar v2 (Chapter 4+), Kanban (Chapter 5), Notes (Chapter 6), Whiteboard (Chapter 7), **Pages & Spaces + Secure Vaults** (Chapter 8), **AI Template Builder v2** (Chapter 9), **Settings hub** (Chapter 10), and **Kaizen Witness AI Assistant** (Chapter 11: privacy proxy agent + tool calling + Stellar witness attestations) implemented.
 
 **Web3 angle:** Kaizenyard is not a generic SaaS todo app — wallet-connected vault unlock, on-chain nullifier anti-replay, and Circom Groth16 (bls12381) proofs are first-class product features built on **Stellar smart contracts** and **`@stellar/stellar-sdk`**.
 
@@ -46,7 +46,7 @@ app/
   (app)/                      protected dashboard shell
     layout.tsx                DashboardShell
     dashboard/page.tsx
-    assistant/page.tsx
+    assistant/page.tsx         Kaizen Witness privacy proxy agent (5 modes, tools, voice, LLM View)
     calendar/page.tsx         full calendar (month/week, DnD, drafts)
     tasks/page.tsx             full kanban (boards, columns, DnD, calendar sync, Liveblocks collaboration)
     notes/page.tsx             full notes (Tiptap editor, STT, TTS, AI refine, Liveblocks Yjs sharing)
@@ -65,15 +65,20 @@ components/
   whiteboard/                 sidebar, Excalidraw canvas, AI diagrams, sticky notes, collaboration panel
   pages/                      all-spaces grid, space detail, page editor, vault unlock, collaboration panel
   templates/                  AI template builder, dynamic app renderer, generated app cards
+  assistant/                  Kaizen Witness chat UI, privacy rail, vault gate, LLM view, witness anchor
   brand/logo.tsx              shared SVG logo
   auth-header.tsx             legacy header (unused; keep for future)
   user-sync.tsx               client: sync Clerk user → DB on visit
   retroui/                    UI kit — not components/ui/
 db/                           index.ts, schema.ts
-lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, whiteboard/, pages/, templates/, stellar/, vault/, liveblocks/
-hooks/                        use-freighter.ts (Stellar Freighter wallet)
+lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, whiteboard/, pages/, templates/, assistant/, witness/, stellar/, vault/, liveblocks/
+hooks/                        use-freighter.ts (Stellar Freighter wallet), use-assistant-session.ts (assistant chat state)
 contracts/vault_verifier/     Soroban ZK vault policy contract (Rust)
+contracts/agent_witness_verifier/  Soroban agent witness attestation contract (Rust; not deployed yet)
 circuits/vault_unlock/        Circom Groth16 circuit (bls12381)
+app/api/assistant/chat/       Vercel AI SDK tool-loop chat + privacy gateway
+app/api/assistant/privacy/llm-view/  Persisted LLM View snapshot (what the model saw)
+app/api/assistant/witness/    register-group, build-anchor (Stellar witness flows)
 app/api/liveblocks-auth/      Liveblocks room auth (Clerk + board/note/whiteboard role)
 app/api/assemblyai/token/     AssemblyAI temporary streaming token
 app/api/notes/ai-refine/      OpenRouter text refinement for selected note text (qwen/qwen3.5-flash-02-23)
@@ -84,7 +89,7 @@ migrations/                   Drizzle SQL migrations
 memory/                       session notes for agents (memory.md)
 ```
 
-`@/*` → repo root. No `src/` or `actions/` folder. `hooks/` has Stellar wallet hook only (`use-freighter.ts`).
+`@/*` → repo root. No `src/` or `actions/` folder. `hooks/` has Stellar wallet + assistant session hooks.
 
 ## Web3 / Stellar stack
 
@@ -114,7 +119,7 @@ hooks/use-freighter.ts      Freighter connect / sign / address
 
 ### Env (Stellar)
 
-`NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` (after `stellar contract deploy`).
+`NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` (after `stellar contract deploy`). **Agent witness:** `NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID` (after deploying `contracts/agent_witness_verifier/` — unset until deploy).
 
 **Before changing Stellar code:** read `.agents/skills/dapp/SKILL.md` (frontend/SDK) and `.agents/skills/zk-proofs/SKILL.md` (circuits/verify). For contract changes: `.agents/skills/smart-contracts/SKILL.md`.
 
@@ -138,7 +143,7 @@ Composed in `components/landing/landing-page.tsx`:
 
 - Wrapped in `DashboardShell` — sidebar + main content
 - All routes protected in `proxy.ts` via `auth.protect()`
-- Pages are **skeletons only** for `/assistant` unless user asks for feature internals (calendar, tasks/kanban, notes, whiteboard, pages, templates are implemented)
+- **Assistant (Kaizen Witness)** — full privacy proxy agent at `/assistant` with 5 modes (Standard, Blind, Witness, Vault, Delegate), tool calling, session history, AssemblyAI voice, LLM View demo panel, and Stellar witness attestations
 - **Settings** — multi-section hub at `/settings` (profile, preferences, categories, AI, notifications, calendar, data export, privacy, integrations, about); Clerk `UserProfile` at `/settings/account`
 - **Do not** add `<OrganizationSwitcher />` until Clerk Organizations is enabled in the Clerk dashboard
 
@@ -207,11 +212,11 @@ npm run db:generate | db:migrate | db:check   # schema changes: edit schema → 
 
 ## Env (copy `.env.example` → `.env`, never commit)
 
-`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token`), `OPENROUTER_API_KEY` (server-only for `/api/notes/ai-refine`, `/api/whiteboard/ai-generate`, and `/api/templates/ai-generate` via OpenRouter model `qwen/qwen3.5-flash-02-23` and Vercel AI SDK). Optional: `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE` for OpenRouter rankings metadata. **Pages Secure Vaults:** `NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` (deploy `contracts/vault_verifier` to testnet). **Template ZK share:** `NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID`. Do not read or print `.env`.
+`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`, `LIVEBLOCKS_SECRET_KEY` (server-only `sk_` key for `/api/liveblocks-auth` — no public Liveblocks key needed), `ASSEMBLYAI_API_KEY` (server-only for `/api/assemblyai/token` and assistant voice), `OPENROUTER_API_KEY` (server-only for `/api/notes/ai-refine`, `/api/whiteboard/ai-generate`, `/api/templates/ai-generate`, and `/api/assistant/chat` via OpenRouter model `qwen/qwen3.5-flash-02-23` and Vercel AI SDK). Optional: `OPENROUTER_HTTP_REFERER`, `OPENROUTER_APP_TITLE` for OpenRouter rankings metadata. **Pages Secure Vaults:** `NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` (deploy `contracts/vault_verifier` to testnet). **Template ZK share:** `NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID`. **Agent witness:** `NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID` (deploy `contracts/agent_witness_verifier` to testnet). Do not read or print `.env`.
 
 ## Clerk
 
-- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`, `/api/assemblyai/token(.*)`, `/api/notes/ai-refine(.*)`, `/api/whiteboard/ai-generate(.*)`, `/api/templates/ai-generate(.*)`, `/api/settings/export(.*)`; `await auth.protect()` on match
+- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`, `/api/assemblyai/token(.*)`, `/api/notes/ai-refine(.*)`, `/api/whiteboard/ai-generate(.*)`, `/api/templates/ai-generate(.*)`, `/api/assistant/chat(.*)`, `/api/assistant/privacy/llm-view(.*)`, `/api/assistant/witness/register-group(.*)`, `/api/assistant/witness/build-anchor(.*)`, `/api/settings/export(.*)`; `await auth.protect()` on match
 - `ClerkProvider` inside `<body>` in `app/layout.tsx`, `appearance={{ theme: shadcn }}`
 - `await auth()` from `@clerk/nextjs/server` — always async
 - Use `@clerk/nextjs`, not `@clerk/clerk-react`
@@ -245,6 +250,103 @@ await db.select().from(users);
 - `generated_app_collaborators` — email sharing for generated apps (`editor` | `viewer`); pending until invitee signs up; access in `lib/templates/access.ts`, invites in `lib/templates/collaboration-actions.ts`
 - `user_settings` — per-user preferences, AI config, notifications (jsonb); server actions in `lib/settings/actions.ts`
 - `user_categories` — dynamic categories per module (`calendar`, `kanban`, `notes`, `reminder`); CRUD in `lib/settings/categories-actions.ts`
+- `assistant_sessions` — per-user chat sessions (`privacyMode`, `agentSessionId`, optional `witnessGroupId`, `delegateAddress`, `llmViewSnapshot` jsonb); actions in `lib/assistant/sessions/actions.ts`
+- `assistant_messages` — persisted UIMessage parts per session
+- `assistant_privacy_maps` — token ↔ plaintext maps for blind/witness privacy gateway (TTL via `expiresAt`)
+- `witness_groups` — owner-scoped attestation groups (`commitment`, `salt`, `stellarNullifierRoot`); actions in `lib/witness/groups.ts`
+- `witness_attestations` — anonymous attestations per group (`nullifier` unique, `actionHash`); actions in `lib/witness/attestations.ts`
+- `kanban_board_pulses` — board-level witness retro pulses (links to `witness_groups`)
+
+## Kaizen Witness AI Assistant (Chapter 11 — done)
+
+Privacy proxy agent at `/assistant` — Vercel AI SDK tool loop + OpenRouter, five privacy modes, cross-module tool calling, and optional Stellar witness attestations.
+
+### Privacy modes
+
+| Mode | Behavior |
+|------|----------|
+| `standard` | Direct tool execution; no tokenization |
+| `blind` | Client tokenizes PII → server gateway rehydrates for tools → tokenizes results back to LLM |
+| `witness` | Blind + anonymous attestations + optional Stellar anchor |
+| `vault` | Vault-gated page reads; real Freighter unlock via `VaultGateBanner` + `VaultUnlockDialog` |
+| `delegate` | Freighter-bound delegate address on session; delegate-specific tools |
+
+**Server-authoritative:** chat route uses `session.privacyMode` from DB only — client does not send `privacyMode` in the transport body.
+
+### Architecture
+
+```
+lib/assistant/
+  sessions/actions.ts       session CRUD, message persistence, mode updates
+  privacy/
+    gateway.ts              tokenize/rehydrate pipeline for tool I/O
+    envelope.ts             client-side PII tokenization helpers
+    map-store.ts            DB-backed privacy token maps
+    llm-view-store.ts       persisted LLM View snapshots (replaces in-memory store)
+  tools/                    mode-gated registry + privacyExecute HOF
+  overview-actions.ts       count()-based overview (no raw table scans)
+  vault-spaces.ts           vault space list for assistant gate
+  witness/                  commitment, anchor build, contract invoke, session unlock ids
+  actions.ts                re-exports only (no god-module)
+
+lib/witness/                neutral domain — NO imports from lib/assistant/
+  groups.ts, attestations.ts, retro-pulse.ts, require-user.ts
+
+hooks/use-assistant-session.ts   sessions, useChat transport, vault unlock ids on send
+```
+
+Calendar/kanban witness retro panels import `lib/witness/retro-pulse.ts` — never `lib/assistant/actions`.
+
+### Tool registry
+
+- **Core (all modes):** calendar, kanban, notes, whiteboard, pages, templates, settings, overview
+- **Witness only:** witness group registration, attestation, anchor build
+- **Delegate only:** delegate wallet tools
+- All mutating tools use `needsApproval: true`; privacy modes use `privacyExecute()` HOF in `lib/assistant/tools/privacy-tool.ts`
+
+### API routes
+
+- `POST /api/assistant/chat` — ToolLoopAgent, privacy gateway, tool execution, message persistence
+- `GET/POST /api/assistant/privacy/llm-view` — demo panel: what tokens the LLM saw (DB-backed per session)
+- `POST /api/assistant/witness/register-group` — create witness group + commitment
+- `POST /api/assistant/witness/build-anchor` — build Stellar anchor tx (auth: group participant + attestation ownership)
+
+### UI (`components/assistant/`)
+
+`assistant-page.tsx`, `assistant-sidebar.tsx`, `assistant-chat.tsx`, `assistant-composer.tsx`, `privacy-mode-rail.tsx`, `proxy-chain-indicator.tsx`, `llm-view-drawer.tsx`, `vault-gate-banner.tsx`, `delegate-wallet-chip.tsx`, `witness-anchor-panel.tsx`, voice input, suggestions per mode.
+
+### Witness retro (calendar + kanban)
+
+- `components/calendar/witness-retro-panel.tsx` — meeting retro with anonymous attestations
+- `components/kanban/witness-retro-panel.tsx` — board retro pulse panel
+- Atomic DB transactions in `lib/witness/retro-pulse.ts` (includes `boardPulseId` back-link)
+
+### Contract (not deployed)
+
+- `contracts/agent_witness_verifier/` — Soroban Rust; `scripts/deploy-agent-witness.sh`
+- Set `NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID` after testnet deploy
+- `.gitignore` includes `contracts/**/target/` — never commit Rust build artifacts
+
+### Migrations
+
+`20260702122140_funny_gorgon` (assistant + witness schema), `20260702164656_breezy_devos` (llmViewSnapshot columns)
+
+### Key files
+
+```
+app/(app)/assistant/page.tsx
+app/api/assistant/chat/route.ts
+app/api/assistant/privacy/llm-view/route.ts
+app/api/assistant/witness/register-group/route.ts
+app/api/assistant/witness/build-anchor/route.ts
+hooks/use-assistant-session.ts
+lib/assistant/ (see architecture above)
+lib/witness/
+components/assistant/
+components/calendar/witness-retro-panel.tsx
+components/kanban/witness-retro-panel.tsx
+contracts/agent_witness_verifier/
+```
 
 ## Liveblocks (Kanban + Notes + Whiteboard + Pages collaboration)
 
@@ -394,4 +496,4 @@ stellar contract deploy \
 
 ## Verify your changes
 
-`npm run build` (TS/React), `npm run lint` on edited files, `db:generate && db:migrate` after schema edits.
+`npm run build` (TS/React), `npm run lint` (zero errors target), `db:generate && db:migrate` after schema edits. Never commit `contracts/**/target/` or `.env`.

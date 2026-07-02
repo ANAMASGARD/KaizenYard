@@ -36,8 +36,30 @@ export function useFreighter() {
   }, []);
 
   useEffect(() => {
-    void checkConnection();
-  }, [checkConnection]);
+    let cancelled = false;
+    void (async () => {
+      const { isConnected: ok, error } = await isConnected();
+      if (cancelled) return;
+      if (error || !ok) {
+        setInstalled(false);
+        return;
+      }
+      setInstalled(true);
+
+      const { address: addr, error: addressError } = await getAddress();
+      if (cancelled || addressError || !addr) return;
+
+      const { network: net, error: networkError } = await getNetwork();
+      if (cancelled || networkError) return;
+
+      setConnected(true);
+      setAddress(addr);
+      setNetwork(net);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const connect = useCallback(async () => {
     const { isConnected: ok, error } = await isConnected();
@@ -48,51 +70,51 @@ export function useFreighter() {
     }
 
     const { address: addr, error: accessError } = await requestAccess();
-    if (accessError) {
-      throw new Error(accessError.message ?? "Wallet access denied");
+    if (accessError || !addr) {
+      throw new Error(accessError ?? "Freighter access denied");
     }
 
+    const config = getStellarConfig();
     const { network: net, error: networkError } = await getNetwork();
     if (networkError) {
-      throw new Error(networkError.message ?? "Could not read wallet network");
+      throw new Error(networkError);
+    }
+    if (net !== config.networkPassphrase) {
+      throw new Error(
+        `Freighter is on wrong network. Switch to ${config.networkLabel} in Freighter settings.`,
+      );
     }
 
-    setInstalled(true);
     setConnected(true);
     setAddress(addr);
     setNetwork(net);
     return addr;
   }, []);
 
-  const disconnect = useCallback(() => {
-    setConnected(false);
-    setAddress(null);
-    setNetwork(null);
-  }, []);
-
   const sign = useCallback(
     async (xdr: string) => {
-      if (!connected) throw new Error("Wallet not connected");
-      const { networkPassphrase } = getStellarConfig();
-      const { signedTxXdr, error } = await signTransaction(xdr, {
-        networkPassphrase,
+      if (!address) {
+        throw new Error("Connect Freighter first");
+      }
+      const { signedTxXdr, error: signError } = await signTransaction(xdr, {
+        networkPassphrase: getStellarConfig().networkPassphrase,
+        address,
       });
-      if (error) {
-        throw new Error(error.message ?? "Signing rejected");
+      if (signError || !signedTxXdr) {
+        throw new Error(signError ?? "Transaction signing failed");
       }
       return signedTxXdr;
     },
-    [connected],
+    [address],
   );
 
   return {
-    installed,
     connected,
     address,
     network,
+    installed,
     connect,
-    disconnect,
     sign,
-    refresh: checkConnection,
+    checkConnection,
   };
 }

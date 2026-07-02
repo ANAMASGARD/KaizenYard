@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Show,
   SignInButton,
@@ -8,12 +9,12 @@ import {
 export function AuthHeader() {
   return (
     <header className="flex items-center justify-between border-b-2 border-border bg-background px-6 py-4">
-      <a
+      <Link
         href="/"
         className="font-head text-lg tracking-tight text-foreground transition-opacity hover:opacity-80"
       >
         Kaizenyard
-      </a>
+      </Link>
       <nav className="flex items-center gap-3">
         <Show when="signed-out">
           <SignInButton mode="redirect">

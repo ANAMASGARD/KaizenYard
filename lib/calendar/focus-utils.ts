@@ -19,7 +19,7 @@ export function computeFragmentationScore(
   items: CalendarItemRecord[],
   weekStart: Date,
   weekEnd: Date,
-  _settings: CalendarSettingsRecord,
+  settings: CalendarSettingsRecord,
 ): number {
   const meetings = items
     .filter((i) => i.scheduledAt)
@@ -29,6 +29,10 @@ export function computeFragmentationScore(
       return { start, end };
     })
     .filter((m) => m.start >= weekStart && m.start < weekEnd)
+    .filter((m) => {
+      const startMin = m.start.getHours() * 60 + m.start.getMinutes();
+      return startMin >= settings.workDayStartMin && startMin < settings.workDayEndMin;
+    })
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
   let fragments = 0;
