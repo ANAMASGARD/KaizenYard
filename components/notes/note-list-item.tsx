@@ -4,6 +4,8 @@ import { FileText, Pin, Users } from "lucide-react";
 import { COLOR_META } from "@/lib/kanban/colors";
 import { formatRelativeTime } from "@/lib/notes/date-utils";
 import type { NoteListItem } from "@/lib/notes/types";
+import { useUserCategories } from "@/lib/settings/use-user-categories";
+import { fallbackCategoryMeta } from "@/lib/settings/category-resolver";
 import { cn } from "@/lib/utils";
 
 type NoteListItemRowProps = {
@@ -14,6 +16,10 @@ type NoteListItemRowProps = {
 
 export function NoteListItemRow({ note, active, onSelect }: NoteListItemRowProps) {
   const meta = COLOR_META[note.color];
+  const { metaByKey } = useUserCategories("notes");
+  const categoryMeta = note.categoryKey
+    ? metaByKey[note.categoryKey] ?? fallbackCategoryMeta(note.categoryKey)
+    : null;
 
   return (
     <button
@@ -41,6 +47,18 @@ export function NoteListItemRow({ note, active, onSelect }: NoteListItemRowProps
         aria-hidden
       />
       <span className="min-w-0 flex-1 truncate">{note.title}</span>
+      {categoryMeta ? (
+        <span
+          className={cn(
+            "hidden shrink-0 rounded border border-border px-1.5 py-0.5 font-sans text-[10px] sm:inline",
+            categoryMeta.bgClass,
+            categoryMeta.textClass,
+            active && "border-primary-foreground/40",
+          )}
+        >
+          {categoryMeta.label}
+        </span>
+      ) : null}
       {note.pinned ? (
         <Pin
           className={cn(

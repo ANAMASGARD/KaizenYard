@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   CALENDAR_ITEM_TYPES,
-  type CalendarCategory,
   type CalendarItemType,
 } from "@/lib/calendar/categories";
 import {
@@ -107,7 +106,7 @@ function buildInitialFormState(
     description: "",
     location: "",
     itemType: "task" as CalendarItemType,
-    category: "meetings" as CalendarCategory,
+    category: "meetings",
     durationMin: 60,
     bufferBeforeMin: 0,
     bufferAfterMin: 0,
@@ -136,7 +135,7 @@ function EventDialogForm({
   const [description, setDescription] = useState(initial.description);
   const [location, setLocation] = useState(initial.location);
   const [itemType, setItemType] = useState<CalendarItemType>(initial.itemType);
-  const [category, setCategory] = useState<CalendarCategory>(initial.category);
+  const [category, setCategory] = useState<string>(initial.category);
   const [dateKey, setDateKey] = useState(initial.dateKey);
   const [timeValue, setTimeValue] = useState(initial.timeValue);
   const [durationMin, setDurationMin] = useState(initial.durationMin);
@@ -355,7 +354,11 @@ function EventDialogForm({
 
         <div className="space-y-1.5">
           <span className={fieldLabelClass}>Category</span>
-          <CategorySwatchPicker value={category} onChange={setCategory} />
+          <CategorySwatchPicker
+            value={category}
+            onChange={setCategory}
+            module={itemType === "reminder" ? "reminder" : "calendar"}
+          />
         </div>
 
         <label className="flex items-center gap-2 font-sans text-sm">

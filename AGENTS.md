@@ -54,7 +54,8 @@ app/
     pages/page.tsx              full pages & spaces (grid, vaults, Tiptap editor, Liveblocks Yjs)
     templates/page.tsx              AI template builder (prompt → JSON mini apps)
     templates/app/[appId]/page.tsx  generated app runner
-    settings/[[...rest]]/page.tsx   Clerk UserProfile
+    settings/...                  multi-section settings hub (profile, prefs, categories, AI, …)
+    settings/account/[[...rest]]/page.tsx   Clerk UserProfile
 components/
   landing/                    marketing page sections
   dashboard/                  app shell + sidebar
@@ -138,7 +139,7 @@ Composed in `components/landing/landing-page.tsx`:
 - Wrapped in `DashboardShell` — sidebar + main content
 - All routes protected in `proxy.ts` via `auth.protect()`
 - Pages are **skeletons only** for `/assistant` unless user asks for feature internals (calendar, tasks/kanban, notes, whiteboard, pages, templates are implemented)
-- Settings uses Clerk `<UserProfile routing="path" path="/settings" />` in `settings-profile.tsx`
+- **Settings** — multi-section hub at `/settings` (profile, preferences, categories, AI, notifications, calendar, data export, privacy, integrations, about); Clerk `UserProfile` at `/settings/account`
 - **Do not** add `<OrganizationSwitcher />` until Clerk Organizations is enabled in the Clerk dashboard
 
 ## Neo-brutalism design system (required)
@@ -210,14 +211,14 @@ npm run db:generate | db:migrate | db:check   # schema changes: edit schema → 
 
 ## Clerk
 
-- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`, `/api/assemblyai/token(.*)`, `/api/notes/ai-refine(.*)`, `/api/whiteboard/ai-generate(.*)`, `/api/templates/ai-generate(.*)`; `await auth.protect()` on match
+- `proxy.ts`: `clerkMiddleware()` + `createRouteMatcher` for app routes **and** `/api/liveblocks-auth(.*)`, `/api/assemblyai/token(.*)`, `/api/notes/ai-refine(.*)`, `/api/whiteboard/ai-generate(.*)`, `/api/templates/ai-generate(.*)`, `/api/settings/export(.*)`; `await auth.protect()` on match
 - `ClerkProvider` inside `<body>` in `app/layout.tsx`, `appearance={{ theme: shadcn }}`
 - `await auth()` from `@clerk/nextjs/server` — always async
 - Use `@clerk/nextjs`, not `@clerk/clerk-react`
 - Routes are public by default until `auth.protect()` is added
 - **User sync:** `components/user-sync.tsx` + `lib/sync-user.ts` upsert signed-in users to `users` by `clerkId` (no webhooks)
 - Dedicated auth pages: `app/sign-in/[[...sign-in]]/page.tsx`, `app/sign-up/[[...sign-up]]/page.tsx` with minimal `layout.tsx` back-link to `/`
-- Settings: `UserProfile` with `routing="path"` + catch-all `settings/[[...rest]]`
+- Settings: custom settings sections + Clerk `UserProfile` at `/settings/account/[[...rest]]`
 
 ## Database
 
@@ -242,6 +243,8 @@ await db.select().from(users);
 - `spaces`, `pages`, `space_collaborators`, `space_files` — folder-style Pages & Spaces; vault fields on `spaces`; file attachments (base64 in Postgres, 5 MB limit v1); server actions in `lib/pages/actions.ts`, `lib/pages/file-actions.ts`
 - `generated_apps` — per-user AI-generated mini apps (`definition` jsonb, `runtimeState` jsonb, sidebar pin fields, `shareToken`, `shareEnabled`, `shareMode`, and ZK share commitment fields); server actions in `lib/templates/actions.ts`
 - `generated_app_collaborators` — email sharing for generated apps (`editor` | `viewer`); pending until invitee signs up; access in `lib/templates/access.ts`, invites in `lib/templates/collaboration-actions.ts`
+- `user_settings` — per-user preferences, AI config, notifications (jsonb); server actions in `lib/settings/actions.ts`
+- `user_categories` — dynamic categories per module (`calendar`, `kanban`, `notes`, `reminder`); CRUD in `lib/settings/categories-actions.ts`
 
 ## Liveblocks (Kanban + Notes + Whiteboard + Pages collaboration)
 

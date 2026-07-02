@@ -4,7 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Calendar, GripVertical, MessageSquare, NotebookPen, ShieldAlert } from "lucide-react";
 import { COLOR_META } from "@/lib/kanban/colors";
-import { LABEL_META, PRIORITY_META } from "@/lib/kanban/labels";
+import { LABEL_META, PRIORITY_META, isKanbanLabel } from "@/lib/kanban/labels";
 import type { ColumnRecord, TaskRecord } from "@/lib/kanban/types";
 import { taskDragId } from "@/lib/kanban/types";
 import { useTaskCommentCount } from "@/components/kanban/task-thread-counts-context";
@@ -127,17 +127,21 @@ export function KanbanCard({
 
           {task.labels.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-1">
-              {task.labels.map((label) => (
+              {task.labels.map((label) => {
+                const labelMeta = isKanbanLabel(label) ? LABEL_META[label] : null;
+                return (
                 <span
                   key={label}
                   className={cn(
                     "rounded border border-border px-1.5 py-0.5 font-sans text-[10px]",
-                    LABEL_META[label].chipClass,
+                    labelMeta?.chipClass ??
+                      "bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200",
                   )}
                 >
-                  {LABEL_META[label].label}
+                  {labelMeta?.label ?? label}
                 </span>
-              ))}
+              );
+              })}
             </div>
           ) : null}
 

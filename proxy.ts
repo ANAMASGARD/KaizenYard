@@ -15,6 +15,7 @@ const isProtectedRoute = createRouteMatcher([
   "/api/notes/ai-refine(.*)",
   "/api/whiteboard/ai-generate(.*)",
   "/api/templates/ai-generate(.*)",
+  "/api/settings/export(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

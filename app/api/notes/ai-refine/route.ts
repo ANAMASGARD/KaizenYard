@@ -7,8 +7,13 @@ import {
 import {
   extractAssistantText,
   getOpenRouterClient,
-  NOTES_LLM_MODEL,
 } from "@/lib/notes/openrouter";
+import {
+  AiFeatureDisabledError,
+  assertAiFeatureEnabled,
+  buildAiSystemPromptSuffix,
+  getAiConfigForUser,
+} from "@/lib/settings/ai-config";
 
 const REFINE_ACTIONS: AiRefineAction[] = [
   "improve_grammar",
@@ -57,11 +62,20 @@ export async function POST(request: Request) {
   }
 
   try {
+    const aiConfig = await getAiConfigForUser(userId);
+    assertAiFeatureEnabled(aiConfig, "refine");
+    assertAiFeatureEnabled(aiConfig, "notesAi");
+
     const openRouter = getOpenRouterClient();
+    const suffix = buildAiSystemPromptSuffix(aiConfig);
     const result = await openRouter.chat.send({
       chatRequest: {
-        model: NOTES_LLM_MODEL,
+        model: aiConfig.model,
         messages: [
+          {
+            role: "system",
+            content: `You refine note text. ${suffix}`,
+          },
           {
             role: "user",
             content: buildRefinePrompt(action, text),
@@ -81,6 +95,9 @@ export async function POST(request: Request) {
 
     return Response.json({ text: refined });
   } catch (err) {
+    if (err instanceof AiFeatureDisabledError) {
+      return Response.json({ error: err.message }, { status: 403 });
+    }
     const message =
       err instanceof Error ? err.message : "AI refine failed";
     return Response.json({ error: message }, { status: 500 });

@@ -4,8 +4,12 @@ import { generateText, Output } from "ai";
 import { buildTemplateGenerationPrompt } from "@/lib/templates/ai-prompt";
 import { generatedAppDefinitionSchema } from "@/lib/templates/schema";
 import { PROMPT_MAX_LENGTH } from "@/lib/templates/types";
-
-const TEMPLATES_LLM_MODEL = "qwen/qwen3.5-flash-02-23" as const;
+import {
+  AiFeatureDisabledError,
+  assertAiFeatureEnabled,
+  buildAiSystemPromptSuffix,
+  getAiConfigForUser,
+} from "@/lib/settings/ai-config";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -28,9 +32,12 @@ export async function POST(request: Request) {
   }
 
   try {
+    const aiConfig = await getAiConfigForUser(userId);
+    assertAiFeatureEnabled(aiConfig, "templates");
+
     const result = await generateText({
-      model: openrouter(TEMPLATES_LLM_MODEL),
-      system: buildTemplateGenerationPrompt(prompt),
+      model: openrouter(aiConfig.model),
+      system: `${buildTemplateGenerationPrompt(prompt)}\n\n${buildAiSystemPromptSuffix(aiConfig)}`,
       prompt,
       output: Output.object({
         schema: generatedAppDefinitionSchema,
@@ -38,6 +45,9 @@ export async function POST(request: Request) {
     });
     return Response.json({ definition: result.output });
   } catch (err) {
+    if (err instanceof AiFeatureDisabledError) {
+      return Response.json({ error: err.message }, { status: 403 });
+    }
     const message =
       err instanceof Error ? err.message : "Template generation failed";
     return Response.json({ error: message }, { status: 500 });

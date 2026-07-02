@@ -10,6 +10,7 @@ import {
   SUGGESTION_PROMPTS,
 } from "@/lib/templates/types";
 import { useGeneratedApps } from "@/lib/templates/use-generated-apps";
+import { useAiFeatures } from "@/lib/settings/use-ai-features";
 import { DynamicAppRenderer } from "@/components/templates/dynamic-app-renderer";
 import {
   GeneratedAppCard,
@@ -36,6 +37,8 @@ export function TemplateBuilderView() {
     handleUnpin,
     pinnedCount,
   } = useGeneratedApps();
+  const { isFeatureEnabled } = useAiFeatures();
+  const templatesAiEnabled = isFeatureEnabled("templates");
 
   const [prompt, setPrompt] = useState("");
   const [generateState, setGenerateState] = useState<GenerateState>("idle");
@@ -143,8 +146,13 @@ export function TemplateBuilderView() {
         </div>
         <Button
           onClick={() => void handleGenerate()}
-          disabled={generateState === "loading" || !prompt.trim()}
+          disabled={generateState === "loading" || !prompt.trim() || !templatesAiEnabled}
           className="w-full sm:w-auto"
+          title={
+            templatesAiEnabled
+              ? undefined
+              : "AI Template Builder is disabled in Settings → AI"
+          }
         >
           <Sparkles className="size-4" />
           Generate

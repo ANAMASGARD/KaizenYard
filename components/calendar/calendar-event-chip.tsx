@@ -2,7 +2,8 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { Bell, CheckSquare, GripVertical, MapPin } from "lucide-react";
-import { CATEGORY_META } from "@/lib/calendar/categories";
+import { CATEGORY_META, isCalendarCategory } from "@/lib/calendar/categories";
+import { fallbackCategoryMeta } from "@/lib/settings/category-resolver";
 import { formatTime } from "@/lib/calendar/date-utils";
 import type { CalendarItemRecord } from "@/lib/calendar/types";
 import { eventDragId } from "@/lib/calendar/types";
@@ -21,7 +22,9 @@ export function CalendarEventChip({
   showDragHandle = true,
   onClick,
 }: CalendarEventChipProps) {
-  const meta = CATEGORY_META[item.category];
+  const meta = isCalendarCategory(item.category)
+    ? CATEGORY_META[item.category]
+    : fallbackCategoryMeta(item.category);
   const Icon = item.itemType === "reminder" ? Bell : CheckSquare;
   const scheduled = item.scheduledAt ? new Date(item.scheduledAt) : null;
   const displayTitle = item.isPrivate ? "Busy" : item.title;

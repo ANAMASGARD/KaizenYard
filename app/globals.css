@@ -135,6 +135,63 @@
   --destructive-foreground: hsl(0 0% 100%);
 }
 
+:root[data-accent="yellow"] {
+  --primary: hsl(50 100% 60%);
+  --primary-hover: hsl(50 100% 50%);
+  --accent: hsl(50 89% 74%);
+}
+
+:root[data-accent="blue"] {
+  --primary: hsl(217 91% 60%);
+  --primary-hover: hsl(217 91% 50%);
+  --accent: hsl(214 95% 85%);
+}
+
+:root[data-accent="emerald"] {
+  --primary: hsl(160 84% 39%);
+  --primary-hover: hsl(160 84% 32%);
+  --accent: hsl(152 76% 80%);
+}
+
+:root[data-accent="violet"] {
+  --primary: hsl(262 83% 58%);
+  --primary-hover: hsl(262 83% 48%);
+  --accent: hsl(270 95% 85%);
+}
+
+:root[data-accent="pink"] {
+  --primary: hsl(330 81% 60%);
+  --primary-hover: hsl(330 81% 50%);
+  --accent: hsl(330 90% 85%);
+}
+
+:root[data-accent="orange"] {
+  --primary: hsl(25 95% 53%);
+  --primary-hover: hsl(25 95% 45%);
+  --accent: hsl(34 100% 85%);
+}
+
+:root[data-accent="cyan"] {
+  --primary: hsl(189 94% 43%);
+  --primary-hover: hsl(189 94% 35%);
+  --accent: hsl(186 94% 82%);
+}
+
+:root[data-accent="red"] {
+  --primary: hsl(0 84% 60%);
+  --primary-hover: hsl(0 84% 50%);
+  --accent: hsl(0 93% 85%);
+}
+
+[data-accent-swatch="yellow"] { background-color: hsl(50 100% 60%); }
+[data-accent-swatch="blue"] { background-color: hsl(217 91% 60%); }
+[data-accent-swatch="emerald"] { background-color: hsl(160 84% 39%); }
+[data-accent-swatch="violet"] { background-color: hsl(262 83% 58%); }
+[data-accent-swatch="pink"] { background-color: hsl(330 81% 60%); }
+[data-accent-swatch="orange"] { background-color: hsl(25 95% 53%); }
+[data-accent-swatch="cyan"] { background-color: hsl(189 94% 43%); }
+[data-accent-swatch="red"] { background-color: hsl(0 84% 60%); }
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

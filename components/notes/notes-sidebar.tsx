@@ -7,10 +7,12 @@ import {
   Pin,
   Plus,
   Search,
+  Tag,
   Trash2,
 } from "lucide-react";
 import {
   duplicateNote,
+  setNoteCategory,
   setNoteColor,
   softDeleteNote,
   togglePin,
@@ -25,6 +27,8 @@ import { ContextMenu } from "@/components/retroui/ContextMenu";
 import { Input } from "@/components/retroui/Input";
 import { Popover } from "@/components/retroui/Popover";
 import { ColorSwatchPicker } from "@/components/notes/color-swatch-picker";
+import { useUserCategories } from "@/lib/settings/use-user-categories";
+import { fallbackCategoryMeta } from "@/lib/settings/category-resolver";
 import { NoteListItemRow } from "@/components/notes/note-list-item";
 import { TrashPanel } from "@/components/notes/trash-panel";
 import { cn } from "@/lib/utils";
@@ -61,6 +65,8 @@ export function NotesSidebar({
 }: NotesSidebarProps) {
   const [trashOpen, setTrashOpen] = useState(false);
   const [colorNoteId, setColorNoteId] = useState<number | null>(null);
+  const [categoryNoteId, setCategoryNoteId] = useState<number | null>(null);
+  const { categories, metaByKey } = useUserCategories("notes");
 
   async function handleNewNote() {
     try {
@@ -105,6 +111,19 @@ export function NotesSidebar({
       });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to pin note");
+    }
+  }
+
+  async function handleCategoryChange(noteId: number, categoryKey: string | null) {
+    try {
+      const saved = await setNoteCategory(noteId, categoryKey);
+      onPatchNote(noteId, {
+        categoryKey: saved.categoryKey,
+        updatedAt: saved.updatedAt,
+      });
+      setCategoryNoteId(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update category");
     }
   }
 
@@ -224,6 +243,10 @@ export function NotesSidebar({
                           <Palette className="size-3.5" />
                           Change color
                         </ContextMenu.Item>
+                        <ContextMenu.Item onClick={() => setCategoryNoteId(note.id)}>
+                          <Tag className="size-3.5" />
+                          Set category
+                        </ContextMenu.Item>
                       </>
                     ) : null}
                     {canTrash ? (
@@ -280,6 +303,41 @@ export function NotesSidebar({
               onChange={(color) => void handleColorChange(colorNoteId, color)}
               compact
             />
+          </Popover.Content>
+        </Popover>
+      ) : null}
+
+      {categoryNoteId !== null ? (
+        <Popover
+          open
+          onOpenChange={(open) => {
+            if (!open) setCategoryNoteId(null);
+          }}
+        >
+          <Popover.Trigger render={<span className="sr-only">Category</span>} />
+          <Popover.Content className="max-w-xs p-3">
+            <div className="mb-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded border-2 border-border px-2 py-1 text-xs shadow-sm"
+                onClick={() => void handleCategoryChange(categoryNoteId, null)}
+              >
+                None
+              </button>
+              {categories.map((category) => {
+                const meta = metaByKey[category.key] ?? fallbackCategoryMeta(category.key);
+                return (
+                  <button
+                    key={category.key}
+                    type="button"
+                    className={`rounded border-2 border-border px-2 py-1 text-xs shadow-sm ${meta.bgClass} ${meta.textClass}`}
+                    onClick={() => void handleCategoryChange(categoryNoteId, category.key)}
+                  >
+                    {meta.label}
+                  </button>
+                );
+              })}
+            </div>
           </Popover.Content>
         </Popover>
       ) : null}

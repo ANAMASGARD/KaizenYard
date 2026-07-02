@@ -8,6 +8,7 @@ export type NoteRecord = {
   clerkId: string;
   title: string;
   color: KanbanColor;
+  categoryKey: string | null;
   content: TiptapJson;
   pinned: boolean;
   deletedAt: string | null;
@@ -21,6 +22,7 @@ export type NoteListItem = {
   id: number;
   title: string;
   color: KanbanColor;
+  categoryKey: string | null;
   pinned: boolean;
   deletedAt: string | null;
   role: NoteRole;
@@ -36,6 +38,7 @@ export type CreateNoteInput = {
 export type UpdateNoteInput = {
   title?: string;
   color?: KanbanColor;
+  categoryKey?: string | null;
   content?: TiptapJson;
   pinned?: boolean;
 };

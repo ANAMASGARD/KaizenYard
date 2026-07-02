@@ -281,6 +281,7 @@ export const notes = pgTable(
     clerkId: text("clerk_id").notNull(),
     title: text("title").notNull().default("Untitled"),
     color: text("color").notNull().default("yellow"),
+    categoryKey: text("category_key"),
     content: jsonb("content").notNull().default({ type: "doc", content: [] }),
     pinned: boolean("pinned").default(false).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -531,3 +532,82 @@ export type GeneratedAppCollaborator =
   typeof generatedAppCollaborators.$inferSelect;
 export type NewGeneratedAppCollaborator =
   typeof generatedAppCollaborators.$inferInsert;
+
+export const userSettings = pgTable("user_settings", {
+  id: serial("id").primaryKey(),
+  clerkId: text("clerk_id").notNull().unique(),
+  defaultCalendarView: text("default_calendar_view").default("week").notNull(),
+  defaultTaskPriority: text("default_task_priority").default("medium").notNull(),
+  dateFormat: text("date_format").default("MMM d, yyyy").notNull(),
+  timeFormat: text("time_format").default("12h").notNull(),
+  weekStartsOn: integer("week_starts_on").default(0).notNull(),
+  autoSave: boolean("auto_save").default(true).notNull(),
+  compactMode: boolean("compact_mode").default(false).notNull(),
+  showCompletedTasks: boolean("show_completed_tasks").default(true).notNull(),
+  timezone: text("timezone").default("UTC").notNull(),
+  locale: text("locale").default("en").notNull(),
+  accentColor: text("accent_color").default("yellow").notNull(),
+  aiModel: text("ai_model").default("qwen/qwen3.5-flash-02-23").notNull(),
+  aiBehavior: text("ai_behavior").default("balanced").notNull(),
+  aiTone: text("ai_tone").default("friendly").notNull(),
+  aiOutputLanguage: text("ai_output_language").default("en").notNull(),
+  aiFeatures: jsonb("ai_features")
+    .notNull()
+    .default({
+      refine: true,
+      assistant: true,
+      templates: true,
+      autoSuggestions: true,
+      summarization: true,
+      notesAi: true,
+      tasksAi: true,
+    }),
+  allowAiDataUsage: boolean("allow_ai_data_usage").default(true).notNull(),
+  notifications: jsonb("notifications")
+    .notNull()
+    .default({
+      email: true,
+      taskReminders: true,
+      comments: true,
+      marketing: false,
+      systemUpdates: true,
+      push: false,
+      dueDateAlertOffset: "1d",
+    }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const userCategories = pgTable(
+  "user_categories",
+  {
+    id: serial("id").primaryKey(),
+    clerkId: text("clerk_id").notNull(),
+    module: text("module").notNull(),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    color: text("color").notNull().default("blue"),
+    icon: text("icon").notNull().default("tag"),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    isSystem: boolean("is_system").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("user_categories_clerk_module_key_idx").on(
+      table.clerkId,
+      table.module,
+      table.key,
+    ),
+    index("user_categories_clerk_module_sort_idx").on(
+      table.clerkId,
+      table.module,
+      table.sortOrder,
+    ),
+  ],
+);
+
+export type UserSettings = typeof userSettings.$inferSelect;
+export type NewUserSettings = typeof userSettings.$inferInsert;
+export type UserCategory = typeof userCategories.$inferSelect;
+export type NewUserCategory = typeof userCategories.$inferInsert;

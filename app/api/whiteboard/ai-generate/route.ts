@@ -8,8 +8,13 @@ import type { ExcalidrawElementLike } from "@/lib/whiteboard/scene";
 import {
   extractAssistantText,
   getOpenRouterClient,
-  NOTES_LLM_MODEL,
 } from "@/lib/notes/openrouter";
+import {
+  AiFeatureDisabledError,
+  assertAiFeatureEnabled,
+  buildAiSystemPromptSuffix,
+  getAiConfigForUser,
+} from "@/lib/settings/ai-config";
 
 function parseDiagramJson(
   raw: string,
@@ -69,11 +74,20 @@ export async function POST(request: Request) {
   }
 
   try {
+    const aiConfig = await getAiConfigForUser(userId);
+    assertAiFeatureEnabled(aiConfig, "summarization");
+    assertAiFeatureEnabled(aiConfig, "notesAi");
+
     const openRouter = getOpenRouterClient();
+    const suffix = buildAiSystemPromptSuffix(aiConfig);
     const result = await openRouter.chat.send({
       chatRequest: {
-        model: NOTES_LLM_MODEL,
+        model: aiConfig.model,
         messages: [
+          {
+            role: "system",
+            content: `You generate Excalidraw diagram JSON. ${suffix}`,
+          },
           {
             role: "user",
             content: buildAiDiagramPrompt(diagramType, prompt),
@@ -101,6 +115,9 @@ export async function POST(request: Request) {
 
     return Response.json(diagram);
   } catch (err) {
+    if (err instanceof AiFeatureDisabledError) {
+      return Response.json({ error: err.message }, { status: 403 });
+    }
     const message =
       err instanceof Error ? err.message : "AI diagram generation failed";
     return Response.json({ error: message }, { status: 500 });

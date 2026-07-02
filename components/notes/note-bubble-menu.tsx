@@ -5,6 +5,7 @@ import type { Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { Sparkles } from "lucide-react";
 import { AI_REFINE_ACTIONS, type AiRefineAction } from "@/lib/notes/ai-refine-prompts";
+import { useAiFeatures } from "@/lib/settings/use-ai-features";
 import { ReadAloud } from "@/components/notes/read-aloud";
 import { Button } from "@/components/retroui/Button";
 import { KaizenLoadingDots } from "@/components/loading/kaizen-loading";
@@ -34,6 +35,9 @@ export function NoteBubbleMenu({
 }: NoteBubbleMenuProps) {
   const [refining, setRefining] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const { isFeatureEnabled } = useAiFeatures();
+  const aiRefineEnabled =
+    isFeatureEnabled("refine") && isFeatureEnabled("notesAi");
 
   if (!editor || readOnly) return null;
 
@@ -129,7 +133,12 @@ export function NoteBubbleMenu({
               variant="outline"
               size="sm"
               className="h-7 gap-1 px-2 text-xs"
-              disabled={refining}
+              disabled={refining || !aiRefineEnabled}
+              title={
+                aiRefineEnabled
+                  ? "AI Refine"
+                  : "AI Refine is disabled in Settings → AI"
+              }
             >
               {refining ? (
                 <KaizenLoadingDots size="sm" aria-label="Refining" />

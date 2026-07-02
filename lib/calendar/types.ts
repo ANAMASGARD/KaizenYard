@@ -1,4 +1,4 @@
-import type { CalendarCategory, CalendarItemType } from "@/lib/calendar/categories";
+import type { CalendarItemType } from "@/lib/calendar/categories";
 
 export type CalendarView = "month" | "week";
 
@@ -19,7 +19,7 @@ export type CalendarItemRecord = {
   clerkId: string;
   title: string;
   itemType: CalendarItemType;
-  category: CalendarCategory;
+  category: string;
   description: string | null;
   location: string | null;
   scheduledAt: string | null;
@@ -41,7 +41,7 @@ export type CalendarItemRecord = {
 export type CreateCalendarItemInput = {
   title: string;
   itemType: CalendarItemType;
-  category: CalendarCategory;
+  category: string;
   description?: string | null;
   location?: string | null;
   scheduledAt?: string | null;

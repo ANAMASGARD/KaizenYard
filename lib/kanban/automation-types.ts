@@ -1,4 +1,4 @@
-import type { KanbanLabel, KanbanPriority } from "@/lib/kanban/labels";
+import type { KanbanPriority } from "@/lib/kanban/labels";
 
 export const AUTOMATION_TRIGGER_TYPES = [
   "task_moved_to_column",
@@ -23,13 +23,13 @@ export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
 
 export type TaskMovedToColumnTriggerConfig = { columnId: number };
 export type TaskCreatedInColumnTriggerConfig = { columnId: number };
-export type LabelAddedTriggerConfig = { label: KanbanLabel };
+export type LabelAddedTriggerConfig = { label: string };
 export type DueDatePassedTriggerConfig = Record<string, never>;
 export type RiskPulseFlaggedTriggerConfig = { threshold: number };
 
 export type MoveToColumnActionConfig = { columnId: number };
 export type SetPriorityActionConfig = { priority: KanbanPriority };
-export type LabelActionConfig = { label: KanbanLabel };
+export type LabelActionConfig = { label: string };
 export type OffsetDueDateActionConfig = { days: number };
 export type ToggleCalendarSyncActionConfig = { enabled: boolean };
 
@@ -83,7 +83,7 @@ export type UpdateAutomationInput = {
 export type AutomationEvent =
   | { type: "task_moved_to_column"; columnId: number }
   | { type: "task_created_in_column"; columnId: number }
-  | { type: "label_added"; label: KanbanLabel }
+  | { type: "label_added"; label: string }
   | { type: "due_date_passed" }
   | { type: "risk_pulse_flagged"; riskCount: number };
 

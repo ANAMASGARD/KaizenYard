@@ -1,5 +1,5 @@
 import type { KanbanColor } from "@/lib/kanban/colors";
-import type { KanbanLabel, KanbanPriority } from "@/lib/kanban/labels";
+import type { KanbanPriority } from "@/lib/kanban/labels";
 import type { BoardRole } from "@/lib/kanban/room";
 
 export type BoardRecord = {
@@ -32,7 +32,7 @@ export type TaskRecord = {
   description: string | null;
   dueDate: string | null;
   priority: KanbanPriority;
-  labels: KanbanLabel[];
+  labels: string[];
   syncCalendar: boolean;
   linkNotes: boolean;
   calendarItemId: number | null;
@@ -81,7 +81,7 @@ export type CreateTaskInput = {
   description?: string;
   dueDate?: string | null;
   priority?: KanbanPriority;
-  labels?: KanbanLabel[];
+  labels?: string[];
   syncCalendar?: boolean;
   linkNotes?: boolean;
 };
@@ -91,7 +91,7 @@ export type UpdateTaskInput = {
   description?: string | null;
   dueDate?: string | null;
   priority?: KanbanPriority;
-  labels?: KanbanLabel[];
+  labels?: string[];
   syncCalendar?: boolean;
   linkNotes?: boolean;
   columnId?: number;

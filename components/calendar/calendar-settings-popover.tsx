@@ -115,6 +115,13 @@ export function CalendarSettingsPopover({
             ))}
           </div>
         </div>
+
+        <a
+          href="/settings/calendar"
+          className="block font-sans text-xs text-muted-foreground underline-offset-2 hover:underline"
+        >
+          Open full calendar settings →
+        </a>
       </Popover.Content>
     </Popover>
   );

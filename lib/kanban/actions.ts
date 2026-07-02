@@ -25,7 +25,9 @@ import {
   type KanbanColor,
 } from "@/lib/kanban/colors";
 import {
-  filterValidLabels,
+  filterValidCategoryKeys,
+} from "@/lib/settings/categories-actions";
+import {
   isKanbanPriority,
 } from "@/lib/kanban/labels";
 import type {
@@ -95,7 +97,7 @@ function toTaskRecord(row: typeof kanbanTasks.$inferSelect): TaskRecord {
     description: row.description,
     dueDate: row.dueDate ? row.dueDate.toISOString() : null,
     priority: row.priority as TaskRecord["priority"],
-    labels: filterValidLabels(row.labels ?? []),
+    labels: row.labels ?? [],
     syncCalendar: row.syncCalendar,
     linkNotes: row.linkNotes,
     calendarItemId: row.calendarItemId,
@@ -578,7 +580,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskRecord> {
     throw new Error("Invalid priority");
   }
 
-  const labels = filterValidLabels(input.labels ?? []);
+  const labels = await filterValidCategoryKeys("kanban", input.labels ?? []);
 
   const existing = await db
     .select({ sortOrder: kanbanTasks.sortOrder })
@@ -685,9 +687,11 @@ export async function updateTask(
   }
 
   const labels =
-    input.labels !== undefined ? filterValidLabels(input.labels) : undefined;
+    input.labels !== undefined
+      ? await filterValidCategoryKeys("kanban", input.labels)
+      : undefined;
 
-  const previousLabels = filterValidLabels(existing.labels ?? []);
+  const previousLabels = existing.labels ?? [];
   const addedLabels =
     labels !== undefined
       ? labels.filter((label) => !previousLabels.includes(label))

@@ -6,7 +6,8 @@ import { GripVertical, Plus } from "lucide-react";
 import { Button } from "@/components/retroui/Button";
 import { Card } from "@/components/retroui/Card";
 import { Text } from "@/components/retroui/Text";
-import { CATEGORY_META } from "@/lib/calendar/categories";
+import { CATEGORY_META, isCalendarCategory } from "@/lib/calendar/categories";
+import { fallbackCategoryMeta } from "@/lib/settings/category-resolver";
 import type { CalendarItemRecord } from "@/lib/calendar/types";
 import { DRAFT_DROP_ID, eventDragId } from "@/lib/calendar/types";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,9 @@ function DraftCard({
   item: CalendarItemRecord;
   onEdit: () => void;
 }) {
-  const meta = CATEGORY_META[item.category];
+  const meta = isCalendarCategory(item.category)
+    ? CATEGORY_META[item.category]
+    : fallbackCategoryMeta(item.category);
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: eventDragId(item.occurrenceKey),

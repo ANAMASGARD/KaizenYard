@@ -9,9 +9,10 @@ import {
   db,
 } from "@/db";
 import {
-  isCalendarCategory,
   isCalendarItemType,
 } from "@/lib/calendar/categories";
+import { isValidCategoryKey } from "@/lib/settings/categories-actions";
+import type { CategoryModule } from "@/lib/settings/types";
 import { expandOccurrences } from "@/lib/calendar/recurrence";
 import type {
   CalendarItemRecord,
@@ -28,6 +29,17 @@ async function requireUserId(): Promise<string> {
     throw new Error("Unauthorized");
   }
   return userId;
+}
+
+async function requireValidCategory(
+  category: string,
+  itemType: string,
+): Promise<void> {
+  const module: CategoryModule = itemType === "reminder" ? "reminder" : "calendar";
+  const valid = await isValidCategoryKey(module, category);
+  if (!valid) {
+    throw new Error("Invalid category");
+  }
 }
 
 function toBaseRecord(
@@ -181,9 +193,7 @@ export async function createCalendarItem(
   if (!isCalendarItemType(input.itemType)) {
     throw new Error("Invalid item type");
   }
-  if (!isCalendarCategory(input.category)) {
-    throw new Error("Invalid category");
-  }
+  await requireValidCategory(input.category, input.itemType);
 
   const [row] = await db
     .insert(calendarItems)
@@ -222,9 +232,6 @@ export async function updateCalendarItem(
   if (input.itemType && !isCalendarItemType(input.itemType)) {
     throw new Error("Invalid item type");
   }
-  if (input.category && !isCalendarCategory(input.category)) {
-    throw new Error("Invalid category");
-  }
 
   const [existing] = await db
     .select()
@@ -233,6 +240,11 @@ export async function updateCalendarItem(
 
   if (!existing) {
     throw new Error("Item not found");
+  }
+
+  if (input.category) {
+    const itemType = input.itemType ?? existing.itemType;
+    await requireValidCategory(input.category, itemType);
   }
 
   if (scope === "occurrence" && originalStartAt && existing.recurrenceRule) {

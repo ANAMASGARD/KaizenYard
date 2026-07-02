@@ -15,6 +15,7 @@ import { noteRowToListItem } from "@/lib/notes/mappers";
 import { EMPTY_TIPTAP_DOC } from "@/lib/notes/persistence";
 import type { NoteRole } from "@/lib/notes/room";
 import { isKanbanColor, type KanbanColor } from "@/lib/kanban/colors";
+import { isValidCategoryKey } from "@/lib/settings/categories-actions";
 import type {
   CreateNoteInput,
   NoteListItem,
@@ -42,6 +43,7 @@ function toNoteRecord(
     clerkId: row.clerkId,
     title: row.title,
     color: isKanbanColor(row.color) ? row.color : "yellow",
+    categoryKey: row.categoryKey ?? null,
     content: row.content as TiptapJson,
     pinned: row.pinned,
     deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
@@ -166,6 +168,13 @@ export async function updateNote(
   const userId = await requireUserId();
   const role = await requireNoteAccess(noteId, userId, "editor");
 
+  if (input.categoryKey) {
+    const valid = await isValidCategoryKey("notes", input.categoryKey);
+    if (!valid) {
+      throw new Error("Invalid category");
+    }
+  }
+
   const [row] = await db
     .update(notes)
     .set({
@@ -173,6 +182,7 @@ export async function updateNote(
       ...(input.color !== undefined && isKanbanColor(input.color)
         ? { color: input.color }
         : {}),
+      ...(input.categoryKey !== undefined ? { categoryKey: input.categoryKey } : {}),
       ...(input.content !== undefined ? { content: input.content } : {}),
       ...(input.pinned !== undefined ? { pinned: input.pinned } : {}),
       updatedAt: sql`now()`,
@@ -239,6 +249,13 @@ export async function setNoteColor(
     throw new Error("Invalid color");
   }
   return updateNote(noteId, { color });
+}
+
+export async function setNoteCategory(
+  noteId: number,
+  categoryKey: string | null,
+): Promise<NoteRecord> {
+  return updateNote(noteId, { categoryKey });
 }
 
 export async function softDeleteNote(noteId: number): Promise<void> {

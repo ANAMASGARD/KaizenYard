@@ -3,13 +3,12 @@
 import { useState, type ChangeEvent } from "react";
 import { createTask, deleteTask, updateTask } from "@/lib/kanban/actions";
 import {
-  KANBAN_LABELS,
   KANBAN_PRIORITIES,
-  LABEL_META,
   PRIORITY_META,
-  type KanbanLabel,
   type KanbanPriority,
 } from "@/lib/kanban/labels";
+import { useUserCategories } from "@/lib/settings/use-user-categories";
+import { fallbackCategoryMeta } from "@/lib/settings/category-resolver";
 import type { BoardRole } from "@/lib/kanban/room";
 import type { TaskDialogDefaults, TaskRecord } from "@/lib/kanban/types";
 import { TaskComments } from "@/components/kanban/task-comments";
@@ -73,6 +72,7 @@ function TaskDialogForm({
 }: TaskDialogFormProps) {
   const editing = defaults?.task;
   const readOnly = boardRole === "viewer";
+  const { categories, metaByKey } = useUserCategories("kanban");
   const [title, setTitle] = useState(editing?.title ?? "");
   const [description, setDescription] = useState(editing?.description ?? "");
   const [dueDate, setDueDate] = useState(
@@ -81,13 +81,13 @@ function TaskDialogForm({
   const [priority, setPriority] = useState<KanbanPriority>(
     editing?.priority ?? "medium",
   );
-  const [labels, setLabels] = useState<KanbanLabel[]>(editing?.labels ?? []);
+  const [labels, setLabels] = useState<string[]>(editing?.labels ?? []);
   const [syncCalendar, setSyncCalendar] = useState(editing?.syncCalendar ?? false);
   const [linkNotes, setLinkNotes] = useState(editing?.linkNotes ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function toggleLabel(label: KanbanLabel) {
+  function toggleLabel(label: string) {
     setLabels((prev) =>
       prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label],
     );
@@ -215,8 +215,10 @@ function TaskDialogForm({
       <div className="space-y-2">
         <span className={fieldLabelClass}>Labels</span>
         <div className="flex flex-wrap gap-2">
-          {KANBAN_LABELS.map((label) => {
+          {categories.map((category) => {
+            const label = category.key;
             const selected = labels.includes(label);
+            const meta = metaByKey[label] ?? fallbackCategoryMeta(label);
             return (
               <button
                 key={label}
@@ -225,12 +227,13 @@ function TaskDialogForm({
                 disabled={readOnly}
                 className={cn(
                   "rounded border-2 border-border px-2 py-1 font-sans text-xs shadow-sm transition-transform",
-                  LABEL_META[label].chipClass,
+                  meta.bgClass,
+                  meta.textClass,
                   selected && "ring-2 ring-foreground ring-offset-1 shadow-md",
                   !selected && "opacity-70 hover:opacity-100",
                 )}
               >
-                {LABEL_META[label].label}
+                {meta.label}
               </button>
             );
           })}

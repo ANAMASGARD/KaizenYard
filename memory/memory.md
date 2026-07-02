@@ -1,6 +1,6 @@
 # Kaizenyard — session memory
 
-Last updated: 2026-07-02
+Last updated: 2026-07-02 (Chapter 10 settings hub shipped)
 
 ## Product direction
 
@@ -8,7 +8,7 @@ Last updated: 2026-07-02
 - Flagship roadmap feature: **anonymous attestation** — feedback provably from a verified group member, without revealing identity
 - **Shipped Web3 feature:** **ZK Secure Vaults** in Pages & Spaces — Groth16 (bls12381) unlock proofs + Soroban `vault_verifier` on testnet via **Freighter** and **`@stellar/stellar-sdk`**
 - Planned roadmap chapters: setup → auth → dashboard → calendar → kanban → notes → whiteboard → spaces → attestation → AI assistant
-- **Chapters 4–9 implemented** (calendar, kanban, notes, whiteboard, pages/spaces + vaults, AI template builder); landing roadmap grid may lag
+- **Chapters 4–10 implemented** (calendar, kanban, notes, whiteboard, pages/spaces + vaults, AI template builder, settings hub); landing roadmap grid may lag
 
 ## Agent skills (`.agents/skills/`)
 
@@ -95,8 +95,8 @@ Replaced placeholder home with a full neo-brutalist marketing site:
 
 - Route group `app/(app)/` with `DashboardShell` layout
 - **Protected routes** in `proxy.ts`: `/dashboard`, `/assistant`, `/calendar`, `/tasks`, `/notes`, `/whiteboard`, `/pages`, `/templates`, `/settings`
-- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar**, **Tasks/Kanban**, **Notes**, **Whiteboard**, **Pages & Spaces**, and **AI Template Builder** — full features)
-- **Settings** — full Clerk `UserProfile` at `/settings` (catch-all `[[...rest]]`)
+- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar**, **Tasks/Kanban**, **Notes**, **Whiteboard**, **Pages & Spaces**, **AI Template Builder**, and **Settings** — full features)
+- **Settings** — multi-section hub at `/settings` (profile, preferences, categories, AI, notifications, calendar, data export, privacy, integrations, about); Clerk account at `/settings/account`
 - **Theme toggle** — mobile top bar right; desktop fixed `top-5 right-5`
 
 ### Sidebar (`components/dashboard/`)
@@ -665,6 +665,47 @@ lib/templates/use-generated-apps.ts, use-pinned-sidebar-apps.ts, use-app-runtime
 components/templates/template-builder-view.tsx, generated-app-view.tsx, shared-app-view.tsx, share-app-dialog.tsx, dynamic-app-renderer.tsx
 app/api/templates/ai-generate/route.ts
 app/(app)/templates/..., app/templates/share/[token]/page.tsx
+```
+
+app/(app)/templates/..., app/templates/share/[token]/page.tsx
+```
+
+## Settings (Chapter 10 — done)
+
+### Data
+
+- `user_settings` — preferences, AI model/behavior/tone, feature toggles, notifications jsonb, accent color
+- `user_categories` — per-user categories for `calendar`, `kanban`, `notes`, `reminder` (key, name, color, icon, sort order)
+- `notes.category_key` — optional note category slug
+
+Migration: `20260702101606_burly_medusa`
+
+### Features
+
+- **`/settings`** — left-nav settings shell (desktop) + mobile drawer; redirects to `/settings/profile`
+- **Profile** — Clerk avatar/name/email summary, timezone, language; nav links use `Link` + `buttonVariants()` (not `Button render={<Link />}` — Base UI `nativeButton` warning)
+- **`/settings/account`** — Clerk `UserProfile` (`path="/settings/account"`); replaces old catch-all `/settings/[[...rest]]`
+- **Preferences** — theme (next-themes), accent presets (`data-accent` in `globals.css` + `AccentColorApplier` in app layout), calendar/task defaults, auto-save, compact mode
+- **Categories** — CRUD + DnD reorder per module; seeded from legacy hardcoded lists; wired into calendar/reminder pickers, kanban labels, notes sidebar category menu
+- **AI Settings** — model select, behavior/tone, per-feature toggles; `lib/settings/ai-config.ts` gates `/api/notes/ai-refine`, `/api/whiteboard/ai-generate`, `/api/templates/ai-generate` + client disables (notes bubble, template builder, whiteboard diagram)
+- **Notifications** — email/reminder/comment/marketing/system/push toggles + due-date alert offset
+- **`/settings/calendar`** — focus goal, work hours, no-meeting days; calendar toolbar popover links to full page
+- **Data export** — `GET /api/settings/export` JSON backup (Clerk-protected in `proxy.ts`)
+- **Privacy** — AI data usage toggle + links to account security
+- **Integrations / About** — stub cards + version/help links
+- **Subscription** — skipped in v1 (no Clerk Billing section)
+
+### Removed / replaced
+
+- Deleted `components/dashboard/settings-profile.tsx` and `app/(app)/settings/[[...rest]]/page.tsx`
+
+### Key files
+
+```
+lib/settings/actions.ts, categories-actions.ts, category-resolver.ts, ai-config.ts, export.ts
+lib/settings/use-user-settings.ts, use-user-categories.ts, use-ai-features.ts, nav-config.ts
+components/settings/settings-shell.tsx, accent-color-applier.tsx, *-section.tsx
+app/(app)/settings/..., app/api/settings/export/route.ts
 ```
 
 ## Not done yet

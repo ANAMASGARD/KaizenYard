@@ -7,6 +7,7 @@ import {
   type AiDiagramType,
 } from "@/lib/whiteboard/ai-diagram-prompts";
 import type { ExcalidrawElementLike } from "@/lib/whiteboard/scene";
+import { useAiFeatures } from "@/lib/settings/use-ai-features";
 import { KaizenLoadingDots } from "@/components/loading/kaizen-loading";
 import { Button } from "@/components/retroui/Button";
 import { Dialog } from "@/components/retroui/Dialog";
@@ -29,6 +30,9 @@ export function AiDiagramDialog({
   const [diagramType, setDiagramType] = useState<AiDiagramType>("flowchart");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { isFeatureEnabled } = useAiFeatures();
+  const diagramAiEnabled =
+    isFeatureEnabled("summarization") && isFeatureEnabled("notesAi");
 
   async function handleGenerate() {
     const trimmed = prompt.trim();
@@ -134,7 +138,16 @@ export function AiDiagramDialog({
           >
             Cancel
           </Button>
-          <Button type="button" onClick={() => void handleGenerate()} disabled={loading}>
+          <Button
+            type="button"
+            onClick={() => void handleGenerate()}
+            disabled={loading || !diagramAiEnabled}
+            title={
+              diagramAiEnabled
+                ? undefined
+                : "AI diagrams are disabled in Settings → AI"
+            }
+          >
             {loading ? (
               <span className="inline-flex items-center gap-2">
                 <KaizenLoadingDots size="sm" aria-label="Generating diagram" />

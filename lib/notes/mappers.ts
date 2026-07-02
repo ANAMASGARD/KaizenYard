@@ -7,6 +7,7 @@ export function noteRecordToListItem(record: NoteRecord): NoteListItem {
     id: record.id,
     title: record.title,
     color: record.color,
+    categoryKey: record.categoryKey,
     pinned: record.pinned,
     deletedAt: record.deletedAt,
     role: record.role,
@@ -19,6 +20,7 @@ export function noteRowToListItem(
     id: number;
     title: string;
     color: string;
+    categoryKey?: string | null;
     pinned: boolean;
     deletedAt: Date | null;
     updatedAt: Date;
@@ -29,6 +31,7 @@ export function noteRowToListItem(
     id: row.id,
     title: row.title,
     color: isKanbanColor(row.color) ? row.color : "yellow",
+    categoryKey: row.categoryKey ?? null,
     pinned: row.pinned,
     deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
     role,
