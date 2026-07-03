@@ -26,7 +26,7 @@
     "@liveblocks/react": "^3.21.0",
     "@liveblocks/yjs": "^3.21.0",
     "@neondatabase/serverless": "^1.1.0",
-    "@openrouter/ai-sdk-provider": "^2.10.0",
+    "@openrouter/ai-sdk-provider": "^6.0.0-alpha.1",
     "@openrouter/sdk": "^0.13.22",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^16.0.1",
