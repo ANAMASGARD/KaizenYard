@@ -145,7 +145,9 @@ export function VaultUnlockDialog({
 
           {loading ? <KaizenLoadingInline label={status ?? "Working…"} /> : null}
           {status && !loading ? (
-            <p className="font-sans text-sm text-muted-foreground">{status}</p>
+            <p className="whitespace-pre-wrap font-sans text-sm text-muted-foreground">
+              {status}
+            </p>
           ) : null}
 
           {txHash ? (

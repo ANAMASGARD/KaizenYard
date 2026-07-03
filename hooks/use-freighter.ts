@@ -10,6 +10,65 @@ import {
 } from "@stellar/freighter-api";
 import { getStellarConfig } from "@/lib/stellar/config";
 
+const FREIGHTER_INSTALL_URL = "https://www.freighter.app";
+
+type FreighterApiError = {
+  code?: number;
+  message?: string;
+};
+
+function formatFreighterError(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as FreighterApiError).message;
+    if (message) return message;
+  }
+  return "Freighter request failed";
+}
+
+function hasFreighterGlobal(): boolean {
+  return typeof window !== "undefined" && Boolean(window.freighter);
+}
+
+async function waitForFreighterExtension(
+  attempts = 5,
+  delayMs = 400,
+): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+
+  for (let i = 0; i < attempts; i += 1) {
+    if (hasFreighterGlobal()) return true;
+
+    const { isConnected: extensionPresent } = await isConnected();
+    if (extensionPresent) return true;
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  return false;
+}
+
+function freighterNotDetectedMessage(): string {
+  return [
+    "Could not reach the Freighter extension.",
+    "Use Chrome or Firefox (not an in-app browser), unlock Freighter, enable it for this site, then refresh.",
+    `Install: ${FREIGHTER_INSTALL_URL}`,
+  ].join(" ");
+}
+
+async function syncAuthorizedSession(): Promise<{
+  address: string;
+  networkPassphrase: string;
+} | null> {
+  const { address: addr, error: addressError } = await getAddress();
+  if (addressError || !addr) return null;
+
+  const { networkPassphrase, error: networkError } = await getNetwork();
+  if (networkError || !networkPassphrase) return null;
+
+  return { address: addr, networkPassphrase };
+}
+
 export function useFreighter() {
   const [connected, setConnected] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
@@ -17,44 +76,32 @@ export function useFreighter() {
   const [installed, setInstalled] = useState(false);
 
   const checkConnection = useCallback(async () => {
-    const { isConnected: ok, error } = await isConnected();
-    if (error || !ok) {
-      setInstalled(false);
-      return;
-    }
-    setInstalled(true);
+    const extensionPresent = await waitForFreighterExtension();
+    setInstalled(extensionPresent);
+    if (!extensionPresent) return;
 
-    const { address: addr, error: addressError } = await getAddress();
-    if (addressError || !addr) return;
-
-    const { network: net, error: networkError } = await getNetwork();
-    if (networkError) return;
+    const session = await syncAuthorizedSession();
+    if (!session) return;
 
     setConnected(true);
-    setAddress(addr);
-    setNetwork(net);
+    setAddress(session.address);
+    setNetwork(session.networkPassphrase);
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const { isConnected: ok, error } = await isConnected();
+      const extensionPresent = await waitForFreighterExtension();
       if (cancelled) return;
-      if (error || !ok) {
-        setInstalled(false);
-        return;
-      }
-      setInstalled(true);
+      setInstalled(extensionPresent);
+      if (!extensionPresent) return;
 
-      const { address: addr, error: addressError } = await getAddress();
-      if (cancelled || addressError || !addr) return;
-
-      const { network: net, error: networkError } = await getNetwork();
-      if (cancelled || networkError) return;
+      const session = await syncAuthorizedSession();
+      if (cancelled || !session) return;
 
       setConnected(true);
-      setAddress(addr);
-      setNetwork(net);
+      setAddress(session.address);
+      setNetwork(session.networkPassphrase);
     })();
     return () => {
       cancelled = true;
@@ -62,32 +109,39 @@ export function useFreighter() {
   }, []);
 
   const connect = useCallback(async () => {
-    const { isConnected: ok, error } = await isConnected();
-    if (error || !ok) {
-      throw new Error(
-        "Freighter wallet not installed. Install from freighter.app",
-      );
-    }
+    const extensionPresent = await waitForFreighterExtension();
+    setInstalled(extensionPresent);
 
     const { address: addr, error: accessError } = await requestAccess();
-    if (accessError || !addr) {
-      throw new Error(accessError ?? "Freighter access denied");
+
+    if (accessError) {
+      throw new Error(formatFreighterError(accessError));
+    }
+
+    if (!addr) {
+      if (!extensionPresent) {
+        throw new Error(freighterNotDetectedMessage());
+      }
+      throw new Error(
+        "Freighter did not return a wallet address. Unlock Freighter and approve access for this site.",
+      );
     }
 
     const config = getStellarConfig();
-    const { network: net, error: networkError } = await getNetwork();
+    const { networkPassphrase, error: networkError } = await getNetwork();
     if (networkError) {
-      throw new Error(networkError);
+      throw new Error(formatFreighterError(networkError));
     }
-    if (net !== config.networkPassphrase) {
+    if (networkPassphrase !== config.networkPassphrase) {
       throw new Error(
-        `Freighter is on wrong network. Switch to ${config.networkLabel} in Freighter settings.`,
+        `Freighter is on the wrong network. Switch to ${config.networkLabel} in Freighter settings.`,
       );
     }
 
+    setInstalled(true);
     setConnected(true);
     setAddress(addr);
-    setNetwork(net);
+    setNetwork(networkPassphrase);
     return addr;
   }, []);
 
@@ -101,7 +155,7 @@ export function useFreighter() {
         address,
       });
       if (signError || !signedTxXdr) {
-        throw new Error(signError ?? "Transaction signing failed");
+        throw new Error(formatFreighterError(signError ?? "Transaction signing failed"));
       }
       return signedTxXdr;
     },
@@ -117,4 +171,10 @@ export function useFreighter() {
     sign,
     checkConnection,
   };
+}
+
+declare global {
+  interface Window {
+    freighter?: boolean;
+  }
 }
