@@ -4,12 +4,11 @@ template AppShare() {
   signal input secret;
   signal input salt;
   signal input app_id;
+  signal input commitment;
+  signal input nullifier;
 
-  signal output commitment;
-  signal output nullifier;
-
-  commitment <== secret * salt;
-  nullifier <== secret + app_id;
+  commitment === secret * salt;
+  nullifier === secret + app_id;
 }
 
-component main = AppShare();
+component main { public [commitment, nullifier] } = AppShare();

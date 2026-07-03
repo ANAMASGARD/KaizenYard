@@ -44,6 +44,8 @@ export async function generateVaultProof(
       secret: secretField.toString(),
       salt: saltField.toString(),
       vault_id: input.vaultId.toString(),
+      commitment: commitmentField.toString(),
+      nullifier: nullifierField.toString(),
     };
 
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(

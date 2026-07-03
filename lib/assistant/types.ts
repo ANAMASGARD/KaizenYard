@@ -55,16 +55,7 @@ export type WitnessAggregate = {
   recentThemes: string[];
 };
 
-export type ProductivityOverview = {
-  calendarItemCount: number;
-  boardCount: number;
-  taskCount: number;
-  noteCount: number;
-  whiteboardCount: number;
-  spaceCount: number;
-  pageCount: number;
-  generatedAppCount: number;
-};
+export type ProductivityOverview = import("@/lib/dashboard/types").ProductivityOverview;
 
 export type AssistantToolContext = {
   clerkId: string;

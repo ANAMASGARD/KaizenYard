@@ -42,3 +42,6 @@ next-env.d.ts
 
 # rust / soroban contract build artifacts
 contracts/**/target/
+
+# circom local build (artifacts live in public/zk/)
+circuits/**/build/

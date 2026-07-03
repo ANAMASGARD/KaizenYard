@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { getProductivityOverview } from "@/lib/assistant/overview-actions";
+import { getProductivityOverview } from "@/lib/dashboard/actions";
 import type { AssistantToolContext } from "@/lib/assistant/types";
 import { privacyExecute } from "@/lib/assistant/tools/privacy-tool";
 

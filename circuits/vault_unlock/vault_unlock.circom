@@ -4,11 +4,11 @@ template VaultUnlock() {
     signal input secret;
     signal input salt;
     signal input vault_id;
-    signal output commitment;
-    signal output nullifier;
+    signal input commitment;
+    signal input nullifier;
 
-    commitment <== secret * salt;
-    nullifier <== secret + vault_id;
+    commitment === secret * salt;
+    nullifier === secret + vault_id;
 }
 
 component main { public [commitment, nullifier] } = VaultUnlock();

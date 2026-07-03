@@ -4,6 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PATH="$ROOT/node_modules/.bin:${PATH:-}"
 CIRCUIT_DIR="$ROOT/circuits/vault_unlock"
 OUT_DIR="$ROOT/public/zk"
 BUILD_DIR="$ROOT/circuits/vault_unlock/build"

@@ -48,29 +48,59 @@ Circuit `circuits/vault_unlock/vault_unlock.circom` (compile with `-p bls12381`)
 | `commitment` | public | `secret * salt` |
 | `nullifier` | public | `secret + vault_id` (anti-replay) |
 
-### Deploy vault verifier (testnet)
+### Deployed contracts (testnet)
+
+**Deployed for hackathon (2026-07-03):**
+
+| Contract | Testnet ID |
+|----------|------------|
+| `vault_verifier` | `CDXXLKMEK5UXKG2CYLM6IHWTIBCFNNDYLGPQBSARQNUPG62JW3JACMUQ` |
+| `agent_witness_verifier` | `CCKPLTS3WDKYRC2GHKDGOESRZI4OUIDZGCTYTEIOUIQKSJNHKQPAGBXF` |
+| `app_share_verifier` | `CD3DAJRJG2XVA65GI3Y7Y3XCLRLYWY4PM5TNMWVCKCIZFT5SN5UOOZHK` |
+
+Explorer: [vault](https://lab.stellar.org/r/testnet/contract/CDXXLKMEK5UXKG2CYLM6IHWTIBCFNNDYLGPQBSARQNUPG62JW3JACMUQ) · [witness](https://lab.stellar.org/r/testnet/contract/CCKPLTS3WDKYRC2GHKDGOESRZI4OUIDZGCTYTEIOUIQKSJNHKQPAGBXF) · [app share](https://lab.stellar.org/r/testnet/contract/CD3DAJRJG2XVA65GI3Y7Y3XCLRLYWY4PM5TNMWVCKCIZFT5SN5UOOZHK)
+
+**No Stellar API key** — testnet uses public RPC (`https://soroban-testnet.stellar.org`) and Friendbot funding.
+
+Full redeploy (all three contracts + ZK artifacts):
 
 ```bash
-# Install Stellar CLI: https://developers.stellar.org/docs/tools/cli
-cd contracts/vault_verifier
-stellar contract build
-stellar keys generate --global deployer --network testnet --fund
-stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/vault_verifier.wasm \
-  --source deployer \
-  --network testnet
+curl -fsSL https://github.com/stellar/stellar-cli/raw/main/install.sh | sh
+rustup target add wasm32v1-none
+chmod +x scripts/deploy-full-web3.sh
+./scripts/deploy-full-web3.sh
 ```
 
-Set `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` in `.env` to the deployed contract ID.
-
-### Build ZK artifacts (optional full Groth16 browser prover)
+Deploy only a missing contract:
 
 ```bash
-chmod +x scripts/build-vault-zk.sh
-./scripts/build-vault-zk.sh   # requires circom + snarkjs CLI
+./scripts/deploy-app-share.sh          # app_share_verifier only
+./scripts/deploy-stellar-testnet.sh    # all three contracts
 ```
 
-Outputs to `public/zk/` (`vault_unlock.wasm`, `vault_unlock_final.zkey`).
+Set in `.env` (and **Vercel env** for production):
+
+```
+NEXT_PUBLIC_STELLAR_NETWORK=testnet
+NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID=CDXXLKMEK5UXKG2CYLM6IHWTIBCFNNDYLGPQBSARQNUPG62JW3JACMUQ
+NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID=CCKPLTS3WDKYRC2GHKDGOESRZI4OUIDZGCTYTEIOUIQKSJNHKQPAGBXF
+NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID=CD3DAJRJG2XVA65GI3Y7Y3XCLRLYWY4PM5TNMWVCKCIZFT5SN5UOOZHK
+```
+
+### Groth16 browser artifacts (built)
+
+Artifacts are committed under `public/zk/` for Vercel static hosting:
+
+```bash
+chmod +x scripts/build-all-zk.sh
+./scripts/build-all-zk.sh   # requires circom + snarkjs (npm install)
+```
+
+Outputs:
+
+- `public/zk/vault_unlock.wasm`, `vault_unlock_final.zkey`
+- `public/zk/app-share/app_share.wasm`, `app_share_final.zkey`
 
 ### Demo script (2–3 min)
 
@@ -85,7 +115,7 @@ Outputs to `public/zk/` (`vault_unlock.wasm`, `vault_unlock_final.zkey`).
 ### Limitations (honest)
 
 - Dev Groth16 trusted setup (single contributor) — not production-ready
-- Contract v1 validates public ZK outputs (commitment + nullifier replay guard); full Groth16 pairing verify can be wired when artifacts are deployed
+- Contract v1 validates public ZK outputs (commitment + nullifier replay guard); full on-chain Groth16 pairing verify is a future upgrade
 - Secure vault sharing disabled in v1
 - Testnet only
 

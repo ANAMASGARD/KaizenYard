@@ -1,3 +1,5 @@
+import { HeroDashboardCta } from "@/components/landing/hero-dashboard-cta";
+
 const STATS = [
   { value: "100%", label: "Anonymous", className: "animate-hero-stat-1" },
   { value: "ZERO", label: "Identity leak", className: "animate-hero-stat-2" },
@@ -48,6 +50,8 @@ export function HeroSection() {
             <p className="animate-hero-description font-sans text-xs leading-relaxed text-white/60 sm:text-sm">
               Verified feedback from real members — without identifying who.
             </p>
+
+            <HeroDashboardCta />
 
             <div className="flex items-end gap-8 sm:gap-12">
               {STATS.map((stat) => (

@@ -44,6 +44,8 @@ export async function generateAppShareProof(
       secret: secretField.toString(),
       salt: saltField.toString(),
       app_id: input.appId.toString(),
+      commitment: commitmentField.toString(),
+      nullifier: nullifierField.toString(),
     };
 
     const { publicSignals } = await snarkjs.groth16.fullProve(

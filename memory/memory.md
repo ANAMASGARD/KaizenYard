@@ -1,6 +1,6 @@
 # Kaizenyard — session memory
 
-Last updated: 2026-07-02 (Chapter 11 Kaizen Witness + lint/build clean)
+Last updated: 2026-07-03 (full Web3 deploy + dashboard home + landing hero CTA)
 
 ## Product direction
 
@@ -27,30 +27,49 @@ Repo-local Stellar/Web3 + DB skills for coding agents. **Read before changing th
 
 Also documented in root **`AGENTS.md`** (product + layout + skills routing table).
 
-## Web3 / Stellar (Chapter 8 vaults)
+## Web3 / Stellar (testnet deployed 2026-07-03)
 
 ### Stack
 
 - **`@stellar/stellar-sdk`** — RPC, contract invoke XDR, simulate/submit (`lib/stellar/contract.ts`)
 - **`@stellar/freighter-api`** — wallet (`hooks/use-freighter.ts`)
-- **`snarkjs`** — browser prover (`lib/vault/prover.ts`)
-- **Soroban:** `contracts/vault_verifier/` (`register_vault`, `verify_unlock`)
-- **Circom:** `circuits/vault_unlock/vault_unlock.circom` (compile `-p bls12381`)
-- **Build script:** `scripts/build-vault-zk.sh` → `public/zk/` (wasm + zkey, not always committed)
+- **`snarkjs`** — browser Groth16 prover (`lib/vault/prover.ts`, `lib/templates/zk-share/prover.ts`)
+- **Soroban contracts (testnet):**
+  - `vault_verifier` — `CDXXLKMEK5UXKG2CYLM6IHWTIBCFNNDYLGPQBSARQNUPG62JW3JACMUQ`
+  - `agent_witness_verifier` — `CCKPLTS3WDKYRC2GHKDGOESRZI4OUIDZGCTYTEIOUIQKSJNHKQPAGBXF`
+  - `app_share_verifier` — `CD3DAJRJG2XVA65GI3Y7Y3XCLRLYWY4PM5TNMWVCKCIZFT5SN5UOOZHK`
+- **Circom:** `circuits/vault_unlock/`, `circuits/app_share/` (compile `-p bls12381`)
+- **ZK artifacts (committed):** `public/zk/`, `public/zk/app-share/` — build via `scripts/build-all-zk.sh`
+- **Deploy identity:** `kaizenyard-deploy` on testnet
 
-### Env
+### Env (local + Vercel)
 
-`NEXT_PUBLIC_STELLAR_NETWORK`, `NEXT_PUBLIC_SOROBAN_RPC_URL`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID`
+```
+NEXT_PUBLIC_STELLAR_NETWORK=testnet
+NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID=CDXXLKMEK5UXKG2CYLM6IHWTIBCFNNDYLGPQBSARQNUPG62JW3JACMUQ
+NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID=CCKPLTS3WDKYRC2GHKDGOESRZI4OUIDZGCTYTEIOUIQKSJNHKQPAGBXF
+NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID=CD3DAJRJG2XVA65GI3Y7Y3XCLRLYWY4PM5TNMWVCKCIZFT5SN5UOOZHK
+```
+
+No Stellar API key — public testnet RPC + Friendbot.
+
+### Scripts
+
+- `scripts/deploy-stellar-testnet.sh` — all three contracts
+- `scripts/deploy-app-share.sh` — app share only
+- `scripts/deploy-full-web3.sh` — contracts + ZK artifacts
+- `scripts/build-all-zk.sh` — vault + app-share Groth16 browser artifacts
 
 ### Hackathon
 
-README **Stellar Hacks: Real-World ZK** section — architecture diagram, deploy steps, 2–3 min demo script.
+README **Stellar Hacks: Real-World ZK** — architecture, contract IDs, demo script, limitations.
 
-### Gaps (judges / production)
+### Remaining Web3 gaps (honest)
 
-- Contract deploy to testnet + env contract ID may be unset
-- Full Groth16 pairing verify in contract (v1 is policy-layer + commitment/nullifier check)
-- ZK artifacts optional until `build-vault-zk.sh` run
+- Full on-chain Groth16 **pairing verify** in contracts (v1 validates commitment + nullifier anti-replay)
+- Dev trusted setup — not production-ready
+- Testnet only
 
 ## What was built (landing + auth)
 
@@ -58,7 +77,7 @@ README **Stellar Hacks: Real-World ZK** section — architecture diagram, deploy
 
 Replaced placeholder home with a full neo-brutalist marketing site:
 
-1. **Hero** — full-screen background video, transparent fixed navbar, minimal copy (headline + meta + one-line description + 3 stats). No CTA buttons in hero.
+1. **Hero** — full-screen background video, transparent fixed navbar, minimal copy + **Dashboard CTA** (`hero-dashboard-cta.tsx`: signed-in → `/dashboard`, signed-out → Clerk sign-in redirect)
 2. **Features** — 6 RetroUI cards (attestation, privacy, productivity tools, collaboration, voice, spaces)
 3. **Attestation** — yellow section, promise card, 3-step flow
 4. **Roadmap** — 10-item dev chapter grid (setup/auth/dashboard/calendar marked done)
@@ -95,9 +114,16 @@ Replaced placeholder home with a full neo-brutalist marketing site:
 
 - Route group `app/(app)/` with `DashboardShell` layout
 - **Protected routes** in `proxy.ts`: `/dashboard`, `/assistant`, `/calendar`, `/tasks`, `/notes`, `/whiteboard`, `/pages`, `/templates`, `/settings`
-- Skeleton pages only — RetroUI `Card` + “Coming soon” placeholder per route (except **Calendar**, **Tasks/Kanban**, **Notes**, **Whiteboard**, **Pages & Spaces**, **AI Template Builder**, and **Settings** — full features)
+- **`/dashboard` home hub** — full productivity snapshot (stats, today events, focus, activity, Web3 strip, pinned AI apps); no longer a skeleton
 - **Settings** — multi-section hub at `/settings` (profile, preferences, categories, AI, notifications, calendar, data export, privacy, integrations, about); Clerk account at `/settings/account`
 - **Theme toggle** — mobile top bar right; desktop fixed `top-5 right-5`
+
+### Dashboard home (`/dashboard` — done)
+
+- **`lib/dashboard/actions.ts`** — `getDashboardSnapshot()` aggregates overview counts, today's calendar (timezone-aware), weekly focus metrics, recent notes, upcoming tasks (7-day window), assistant sessions, pinned apps, vault space count, Web3 contract status
+- **`getProductivityOverview()`** moved here from assistant; `lib/assistant/overview-actions.ts` re-exports for compat; overview tool imports dashboard
+- **UI** — `components/dashboard/dashboard-view.tsx` + stat/quick-action/today/focus/activity/web3/pinned panels; `dashboard-layout.ts` shared card stretch tokens (RetroUI Card `inline-block` fix); neo-brutalist RetroUI; empty states with CTAs
+- **Route** — `app/(app)/dashboard/page.tsx` async RSC + `Suspense` + `KaizenLoadingScreen`
 
 ### Sidebar (`components/dashboard/`)
 
@@ -443,7 +469,8 @@ app/api/whiteboard/ai-generate/route.ts
 components/landing/
   landing-page.tsx      composer
   landing-navbar.tsx    fixed nav + mobile menu + theme toggle
-  hero-section.tsx      video hero
+  hero-section.tsx      video hero + Dashboard CTA
+  hero-dashboard-cta.tsx  Clerk-aware dashboard button
   features-section.tsx
   attestation-section.tsx
   roadmap-section.tsx
@@ -463,7 +490,8 @@ components/dashboard/
   clerk-appearance.ts     Clerk component appearance overrides
   settings-profile.tsx    Settings page UserProfile
   nav-config.ts           nav items + groups
-  skeleton-page.tsx       placeholder page template
+  dashboard-view.tsx, dashboard-stat-card.tsx, dashboard-quick-actions.tsx, …
+  skeleton-page.tsx       legacy placeholder (other routes no longer use for dashboard)
 
 components/theme/
   theme-provider.tsx      next-themes wrapper
@@ -494,6 +522,7 @@ lib/
   sync-user.ts            Clerk → users upsert + pending board/note/whiteboard/space invite resolution
   pages/                  spaces, pages, files, vault session, Stellar contract helpers
   templates/              AI template builder CRUD, runtime state, sidebar pins, OpenRouter prompt
+  dashboard/              snapshot actions, types, timezone date helpers
   assistant/              Kaizen Witness sessions, privacy gateway, tool registry, witness client
   witness/                neutral attestation domain (groups, attestations, retro-pulse) — no assistant imports from calendar/kanban
   stellar/                Stellar SDK config + Soroban invoke helpers
@@ -598,65 +627,14 @@ Migrations: `20260702080737_ambiguous_hobgoblin`, `20260702095220_chilly_carnage
 - Added initial Stellar app-share pieces: `circuits/app_share/app_share.circom`, `contracts/app_share_verifier/`, `lib/templates/zk-share/*`.
 - Verified local app changes with `npm run build`, lint on touched files, `npm run db:generate`, and `npm run db:migrate`.
 
-### Web3 deployment status
+### Web3 deployment status (2026-07-03 — done)
 
-- No Stellar deployment commands have been run yet for the new app-share flow.
-- `contracts/app_share_verifier/` is present locally only.
-- `NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID` is not ready until we deploy later.
-- ZK share is scaffolded in code, but production-like end-to-end testing still depends on contract deployment plus `public/zk/app-share/` artifacts.
+- All three Soroban contracts on testnet (IDs in README + Web3 section above)
+- Groth16 browser artifacts committed under `public/zk/` and `public/zk/app-share/`
+- Circuits fixed: public inputs `commitment` + `nullifier` with constraint checks
+- **Vercel:** set all three `NEXT_PUBLIC_*_CONTRACT_ID` env vars before hackathon demo
 
-### Deploy later: Stellar commands
-
-Current app config uses public Stellar testnet infrastructure and Freighter. There is **no Stellar API key required** for the default public testnet RPC/Horizon/Friendbot endpoints already referenced by the app. If we later switch to a paid RPC provider, get that provider-specific key from that provider's dashboard and replace the RPC URL env var; Stellar itself does not issue a universal API key for testnet access.
-
-Suggested later flow:
-
-```bash
-# 1) Install the Stellar CLI if missing
-brew install stellar-cli
-# or see: https://developers.stellar.org/docs/tools/cli
-
-# 2) Build the contract
-cd contracts/app_share_verifier
-cargo build --target wasm32v1-none --release
-
-# 3) Add an identity for testnet
-stellar keys generate kaizenyard-app-share --network testnet
-
-# 4) Fund the identity on testnet
-stellar keys fund kaizenyard-app-share --network testnet
-
-# 5) Deploy the contract
-stellar contract deploy \
-  --wasm target/wasm32v1-none/release/app_share_verifier.wasm \
-  --source kaizenyard-app-share \
-  --network testnet
-
-# 6) Save returned contract id into env
-NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID=<returned_contract_id>
-```
-
-Optional local invocation checks after deploy:
-
-```bash
-stellar contract invoke \
-  --id "$NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID" \
-  --source kaizenyard-app-share \
-  --network testnet \
-  -- register_share_app \
-  --owner <G...PUBLIC_KEY> \
-  --app_id 1 \
-  --commitment <hex_32_bytes>
-```
-
-### ZK artifact reminder
-
-Before full ZK share testing later:
-
-```bash
-# add or run an app-share build script later
-circom circuits/app_share/app_share.circom --r1cs --wasm --sym -o public/zk/app-share -p bls12381
-```
+Redeploy: `./scripts/deploy-full-web3.sh`
 
 ### Files
 
@@ -716,11 +694,10 @@ POST /api/assistant/witness/build-anchor
 
 All protected in `proxy.ts`.
 
-### Contract (not deployed)
+### Contracts (testnet deployed)
 
-- `contracts/agent_witness_verifier/` — local Soroban Rust only
-- `scripts/deploy-agent-witness.sh` — deploy helper
-- `NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID` unset until testnet deploy
+- `contracts/agent_witness_verifier/` — `CCKPLTS3WDKYRC2GHKDGOESRZI4OUIDZGCTYTEIOUIQKSJNHKQPAGBXF`
+- `scripts/deploy-stellar-testnet.sh` — all three contracts; `scripts/deploy-agent-witness.sh` — witness only
 - `.gitignore`: `contracts/**/target/` (~874MB — never commit)
 
 ### Quality (2026-07-02)
@@ -787,7 +764,6 @@ app/(app)/settings/..., app/api/settings/export/route.ts
 - Kanban `collaboration-actions.ts` refactor to use `lib/collaboration/` helpers (Notes + shared panel done; Kanban actions still separate)
 - Liveblocks on calendar (room ID pattern documented; kanban/notes/whiteboard/pages done)
 - Landing roadmap grid accuracy — update chapters 3–11 status to match shipped features
-- **Web3 hardening:** deploy `vault_verifier` + `agent_witness_verifier` to testnet, commit/build `public/zk/` artifacts, full Groth16 pairing verify in contracts
-- **Template ZK share:** deploy `app_share_verifier`, build `public/zk/app-share/` artifacts
+- **Web3:** full on-chain Groth16 pairing verify in Soroban contracts (browser prover + artifacts shipped)
 - **File storage v2:** blob store (S3/R2) for files >5 MB instead of Postgres base64
 - **Agent witness contract tests** — Soroban harness issues; tests removed pending fix

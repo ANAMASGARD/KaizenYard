@@ -45,7 +45,7 @@ app/
   sign-up/                    Clerk sign-up + back-link layout
   (app)/                      protected dashboard shell
     layout.tsx                DashboardShell
-    dashboard/page.tsx
+    dashboard/page.tsx         productivity home hub (stats, today, focus, activity, Web3 strip)
     assistant/page.tsx         Kaizen Witness privacy proxy agent (5 modes, tools, voice, LLM View)
     calendar/page.tsx         full calendar (month/week, DnD, drafts)
     tasks/page.tsx             full kanban (boards, columns, DnD, calendar sync, Liveblocks collaboration)
@@ -58,7 +58,7 @@ app/
     settings/account/[[...rest]]/page.tsx   Clerk UserProfile
 components/
   landing/                    marketing page sections
-  dashboard/                  app shell + sidebar
+  dashboard/                  app shell, sidebar, dashboard home hub
   calendar/                   month/week views, draft panel, DnD, event dialog
   kanban/                     boards sidebar, columns, cards, task dialog, DnD, collaboration, comments
   notes/                      sidebar, Tiptap editor, slash commands, STT, TTS, AI refine, collaboration panel
@@ -71,11 +71,13 @@ components/
   user-sync.tsx               client: sync Clerk user → DB on visit
   retroui/                    UI kit — not components/ui/
 db/                           index.ts, schema.ts
-lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, calendar/, kanban/, notes/, whiteboard/, pages/, templates/, assistant/, witness/, stellar/, vault/, liveblocks/
+lib/                          utils.ts (cn), sync-user.ts, mask-email.ts, dashboard/, calendar/, kanban/, notes/, whiteboard/, pages/, templates/, assistant/, witness/, stellar/, vault/, liveblocks/
 hooks/                        use-freighter.ts (Stellar Freighter wallet), use-assistant-session.ts (assistant chat state)
 contracts/vault_verifier/     Soroban ZK vault policy contract (Rust)
-contracts/agent_witness_verifier/  Soroban agent witness attestation contract (Rust; not deployed yet)
+contracts/agent_witness_verifier/  Soroban agent witness attestation contract (Rust; testnet deployed)
+contracts/app_share_verifier/     Soroban template ZK share contract (Rust; testnet deployed)
 circuits/vault_unlock/        Circom Groth16 circuit (bls12381)
+circuits/app_share/             Circom Groth16 circuit for template ZK share
 app/api/assistant/chat/       Vercel AI SDK tool-loop chat + privacy gateway
 app/api/assistant/privacy/llm-view/  Persisted LLM View snapshot (what the model saw)
 app/api/assistant/witness/    register-group, build-anchor (Stellar witness flows)
@@ -99,7 +101,7 @@ Kaizenyard uses **Stellar testnet** for Secure Vaults (hackathon: Stellar Hacks 
 
 - **`@stellar/stellar-sdk`** — RPC client, `TransactionBuilder`, `Operation.invokeContract`, XDR encode/decode, submit/simulate (`lib/stellar/contract.ts`)
 - **`@stellar/freighter-api`** — browser wallet connect/sign (`hooks/use-freighter.ts`)
-- **`snarkjs`** — browser Groth16 prover for vault unlock (`lib/vault/prover.ts`; artifacts in `public/zk/` after `./scripts/build-vault-zk.sh`)
+- **`snarkjs`** — browser Groth16 prover for vault unlock + template ZK share (`lib/vault/prover.ts`, `lib/templates/zk-share/prover.ts`; artifacts in `public/zk/` via `./scripts/build-all-zk.sh`)
 
 ### On-chain
 
@@ -119,7 +121,7 @@ hooks/use-freighter.ts      Freighter connect / sign / address
 
 ### Env (Stellar)
 
-`NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID` (after `stellar contract deploy`). **Agent witness:** `NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID` (after deploying `contracts/agent_witness_verifier/` — unset until deploy).
+`NEXT_PUBLIC_STELLAR_NETWORK=testnet`, `NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org`, `NEXT_PUBLIC_VAULT_VERIFIER_CONTRACT_ID`, `NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID`, `NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID` (see README for deployed testnet IDs). Deploy: `./scripts/deploy-stellar-testnet.sh` or `./scripts/deploy-full-web3.sh`.
 
 **Before changing Stellar code:** read `.agents/skills/dapp/SKILL.md` (frontend/SDK) and `.agents/skills/zk-proofs/SKILL.md` (circuits/verify). For contract changes: `.agents/skills/smart-contracts/SKILL.md`.
 
@@ -143,9 +145,27 @@ Composed in `components/landing/landing-page.tsx`:
 
 - Wrapped in `DashboardShell` — sidebar + main content
 - All routes protected in `proxy.ts` via `auth.protect()`
+- **`/dashboard` home hub** — productivity snapshot via `getDashboardSnapshot()` in `lib/dashboard/actions.ts`: greeting, quick actions, module stat cards, today's calendar events, weekly focus bar, recent notes / upcoming tasks / assistant chats, Stellar Web3 strip (when contract IDs set), pinned AI apps. UI in `components/dashboard/dashboard-view.tsx` + section panels. Sidebar ⌘K search remains **nav-only** (not global content search).
 - **Assistant (Kaizen Witness)** — full privacy proxy agent at `/assistant` with 5 modes (Standard, Blind, Witness, Vault, Delegate), tool calling, session history, AssemblyAI voice, LLM View demo panel, and Stellar witness attestations
 - **Settings** — multi-section hub at `/settings` (profile, preferences, categories, AI, notifications, calendar, data export, privacy, integrations, about); Clerk `UserProfile` at `/settings/account`
 - **Do not** add `<OrganizationSwitcher />` until Clerk Organizations is enabled in the Clerk dashboard
+
+### Dashboard home key files
+
+```
+lib/dashboard/actions.ts       getDashboardSnapshot(), getProductivityOverview()
+lib/dashboard/types.ts         DashboardSnapshot, ProductivityOverview
+lib/dashboard/date-utils.ts    timezone day bounds, greeting helpers
+components/dashboard/dashboard-view.tsx
+components/dashboard/dashboard-stat-card.tsx
+components/dashboard/dashboard-quick-actions.tsx
+components/dashboard/dashboard-today-panel.tsx
+components/dashboard/dashboard-focus-panel.tsx
+components/dashboard/dashboard-activity-panel.tsx
+components/dashboard/dashboard-web3-strip.tsx
+components/dashboard/dashboard-pinned-apps.tsx
+app/(app)/dashboard/page.tsx   async RSC + Suspense
+```
 
 ## Neo-brutalism design system (required)
 
@@ -321,10 +341,10 @@ Calendar/kanban witness retro panels import `lib/witness/retro-pulse.ts` — nev
 - `components/kanban/witness-retro-panel.tsx` — board retro pulse panel
 - Atomic DB transactions in `lib/witness/retro-pulse.ts` (includes `boardPulseId` back-link)
 
-### Contract (not deployed)
+### Contracts (testnet deployed)
 
-- `contracts/agent_witness_verifier/` — Soroban Rust; `scripts/deploy-agent-witness.sh`
-- Set `NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID` after testnet deploy
+- `contracts/agent_witness_verifier/` — `CCKPLTS3WDKYRC2GHKDGOESRZI4OUIDZGCTYTEIOUIQKSJNHKQPAGBXF`
+- Set `NEXT_PUBLIC_AGENT_WITNESS_VERIFIER_CONTRACT_ID` in `.env` and Vercel
 - `.gitignore` includes `contracts/**/target/` — never commit Rust build artifacts
 
 ### Migrations
@@ -454,30 +474,17 @@ app/(app)/templates/..., app/templates/share/[token]/page.tsx
 
 **Note:** `lib/pages/templates.ts` is unrelated (Tiptap starter content for Pages & Spaces).
 
-### Deployment status note
+### Deployment status (2026-07-03)
 
-- Template Builder v2 sharing + ZK share code is implemented locally.
-- We have **not yet run Stellar deployment commands** for `contracts/app_share_verifier/`.
-- We have **not yet deployed** the app-share contract to Stellar testnet.
-- We have **not yet produced/finalized** `public/zk/app-share/` artifacts for full ZK share verification.
-- `NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID` should stay unset until deployment is completed later.
+- All three Soroban contracts deployed to testnet (`scripts/deploy-stellar-testnet.sh`)
+- Groth16 browser artifacts built under `public/zk/` and `public/zk/app-share/` (`scripts/build-all-zk.sh`)
+- Set `NEXT_PUBLIC_APP_SHARE_VERIFIER_CONTRACT_ID=CD3DAJRJG2XVA65GI3Y7Y3XCLRLYWY4PM5TNMWVCKCIZFT5SN5UOOZHK` in `.env` and Vercel
 
-### Later deploy checklist
+### Redeploy
 
 ```bash
-# build soroban contract
-cd contracts/app_share_verifier
-cargo build --target wasm32v1-none --release
-
-# create/fund testnet identity
-stellar keys generate kaizenyard-app-share --network testnet
-stellar keys fund kaizenyard-app-share --network testnet
-
-# deploy and copy returned contract id
-stellar contract deploy \
-  --wasm target/wasm32v1-none/release/app_share_verifier.wasm \
-  --source kaizenyard-app-share \
-  --network testnet
+chmod +x scripts/deploy-full-web3.sh
+./scripts/deploy-full-web3.sh
 ```
 
 ### Stellar API key note
